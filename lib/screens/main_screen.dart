@@ -4,7 +4,6 @@ import 'home/home_screen.dart';
 import 'articles/articles_screen.dart';
 import 'activities/activities_screen.dart';
 import 'profile/profile_screen.dart';
-
 import '../widgets/app_header.dart';
 import '../widgets/bottom_nav.dart';
 

@@ -57,6 +57,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/images/ssite_logo.png
     - assets/images/ssite_logo_cropped.png
 
   # To add assets to your application, add an assets section, like this:

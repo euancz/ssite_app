@@ -75,7 +75,7 @@ class AppBottomNav extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 8,
+                fontSize: 9,
                 fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                 color: const Color(0xFF164B5C),
               ),

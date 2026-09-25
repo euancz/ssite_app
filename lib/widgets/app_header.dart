@@ -14,8 +14,8 @@ class AppHeader extends StatelessWidget {
 
           // SSITE LOGO
           SizedBox(
-            width: 48,
-            height: 48,
+            width: 50,
+            height: 50,
             child: Image.asset(
               'assets/images/ssite_logo_cropped.png',
               fit: BoxFit.contain,
@@ -31,7 +31,7 @@ class AppHeader extends StatelessWidget {
             child: Text(
               'STUDENT SOCIETY IN INFORMATION\nTECHNOLOGY EDUCATION',
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF163D4A),
                 height: 1.15,
