@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../screens/auth/login_screen.dart';
+
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
 
@@ -133,8 +135,12 @@ class Sidebar extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-
-                    // Add logout function here later.
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2A91B5),
