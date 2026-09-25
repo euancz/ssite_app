@@ -15,7 +15,7 @@ class ArticlesScreen extends StatelessWidget {
           bottom: 30,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // SEARCH BAR
             const AppSearchBar(),
@@ -25,6 +25,7 @@ class ArticlesScreen extends StatelessWidget {
             // TITLE
             const Text(
               'Articles',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 21,
                 fontWeight: FontWeight.bold,
@@ -115,7 +116,7 @@ class ArticlesScreen extends StatelessWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       builder: (context) {
         return SizedBox(
-          height: 350,
+          height: 300,
           width: double.infinity,
           child: Column(
             children: [
@@ -212,7 +213,7 @@ class ArticlesScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 43,
+        height: 38,
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: Color(0xFFD8F3FC), width: 1)),
