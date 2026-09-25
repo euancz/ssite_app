@@ -7,6 +7,7 @@ class Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Drawer(
       width: 230,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       backgroundColor: const Color(0xFF155A73),
       child: SafeArea(
         child: Column(

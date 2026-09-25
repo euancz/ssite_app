@@ -9,8 +9,8 @@ class ActivitiesScreen extends StatelessWidget {
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.only(
-          left: 32,
-          right: 32,
+          left: 36,
+          right: 36,
           top: 19,
           bottom: 30,
         ),
@@ -66,7 +66,7 @@ class ActivitiesScreen extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          height: 171,
+          height: 190,
           decoration: BoxDecoration(
             color: const Color(0xFFD0D0D0),
             borderRadius: BorderRadius.circular(9),
