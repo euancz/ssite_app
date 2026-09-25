@@ -22,20 +22,37 @@ class AppBottomNav extends StatelessWidget {
 
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _buildNavItem(icon: Icons.home, label: 'Home', index: 0),
 
           _buildNavItem(icon: Icons.newspaper, label: 'Articles', index: 1),
 
-          // ADD
-          GestureDetector(
-            onTap: () {
-              // Add button logic
-            },
-            child: const Icon(
-              Icons.add_circle_outline,
-              size: 29,
-              color: Color(0xFF164B5C),
+          SizedBox(
+            width: 55,
+            child: GestureDetector(
+              onTap: () {
+                // Add button logic
+              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.add_circle_outline,
+                    size: 28,
+                    color: Color(0xFF164B5C),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Add',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: const Color(0xFF164B5C),
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -57,27 +74,26 @@ class AppBottomNav extends StatelessWidget {
     required int index,
   }) {
     final bool selected = selectedIndex == index;
+    final Color activeColor = const Color(0xFF123E4C);
+    final Color inactiveColor = const Color(0xFF164B5C);
 
     return GestureDetector(
       onTap: () {
         onItemTapped(index);
       },
-
       child: SizedBox(
         width: 55,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 25, color: const Color(0xFF164B5C)),
-
+            Icon(icon, size: 25, color: selected ? activeColor : inactiveColor),
             const SizedBox(height: 2),
-
             Text(
               label,
               style: TextStyle(
                 fontSize: 9,
                 fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                color: const Color(0xFF164B5C),
+                color: selected ? activeColor : inactiveColor,
               ),
             ),
           ],

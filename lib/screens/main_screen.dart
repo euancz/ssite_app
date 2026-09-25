@@ -4,7 +4,9 @@ import 'home/home_screen.dart';
 import 'articles/articles_screen.dart';
 import 'activities/activities_screen.dart';
 import 'profile/profile_screen.dart';
+
 import '../widgets/app_header.dart';
+import '../widgets/sidebar.dart';
 import '../widgets/bottom_nav.dart';
 
 class MainScreen extends StatefulWidget {
@@ -16,6 +18,9 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+
+  // KEY FOR THE DRAWER
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -30,21 +35,31 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+
+      // ==========================================================
+      // SIDEBAR
+      // ==========================================================
+      drawer: const Sidebar(),
+
       backgroundColor: Colors.white,
 
       // ==========================================================
-      // HEADER
+      // MAIN CONTENT
       // ==========================================================
       body: Column(
         children: [
-          const AppHeader(),
+          // HEADER
+          AppHeader(onLogoTap: _openDrawer),
 
-          // ========================================================
           // CURRENT SCREEN
-          // ========================================================
           Expanded(
             child: IndexedStack(index: _selectedIndex, children: _screens),
           ),

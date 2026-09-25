@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -121,53 +128,71 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 15),
 
-            // INFORMATION CARD
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
+            // INFORMATION DROPBOX
+            Theme(
+              data: Theme.of(context).copyWith(
+                dividerColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+              ),
+              child: Material(
                 color: const Color(0xFFD5EAF2),
                 borderRadius: BorderRadius.circular(5),
-              ),
-              child: Column(
-                children: [
-                  _buildInfoRow(label: 'Student Number', value: '2425-0123'),
-
-                  _buildDivider(),
-
-                  _buildInfoRow(label: 'Year Level', value: '3 - Regular'),
-
-                  _buildDivider(),
-
-                  _buildInfoRow(label: 'Program', value: 'ICS – BSIT'),
-
-                  _buildDivider(),
-
-                  _buildInfoRow(label: 'Gender', value: 'Male'),
-
-                  _buildDivider(),
-
-                  _buildContactRow(
-                    icon: Icons.phone,
-                    label: 'Contact Number',
-                    value: '091284627763',
+                clipBehavior: Clip.antiAlias,
+                child: ExpansionTile(
+                  initiallyExpanded: _isExpanded,
+                  onExpansionChanged: (expanded) {
+                    setState(() {
+                      _isExpanded = expanded;
+                    });
+                  },
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+                  childrenPadding: EdgeInsets.zero,
+                  backgroundColor: const Color(0xFFD5EAF2),
+                  collapsedBackgroundColor: const Color(0xFFD5EAF2),
+                  title: const Text(
+                    'Personal Information',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF164B5C),
+                    ),
                   ),
-
-                  _buildDivider(),
-
-                  _buildContactRow(
-                    icon: Icons.email,
-                    label: 'Email',
-                    value: 'Alden67@mcc.edu.ph',
+                  trailing: Icon(
+                    _isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: const Color(0xFF164B5C),
+                    size: 25,
                   ),
-
-                  _buildDivider(),
-
-                  _buildContactRow(
-                    icon: Icons.location_on,
-                    label: 'Address',
-                    value: 'St. Peter, Catucatan, Masaya...',
-                  ),
-                ],
+                  children: [
+                    _buildInfoRow(label: 'Student Number', value: '2425-0123'),
+                    _buildDivider(),
+                    _buildInfoRow(label: 'Year Level', value: '3 - Regular'),
+                    _buildDivider(),
+                    _buildInfoRow(label: 'Program', value: 'ICS – BSIT'),
+                    _buildDivider(),
+                    _buildInfoRow(label: 'Gender', value: 'Male'),
+                    _buildDivider(),
+                    _buildContactRow(
+                      icon: Icons.phone,
+                      label: 'Contact Number',
+                      value: '091284627763',
+                    ),
+                    _buildDivider(),
+                    _buildContactRow(
+                      icon: Icons.email,
+                      label: 'Email',
+                      value: 'Alden67@mcc.edu.ph',
+                    ),
+                    _buildDivider(),
+                    _buildContactRow(
+                      icon: Icons.location_on,
+                      label: 'Address',
+                      value: 'St. Peter, Catucatan, Masaya...',
+                    ),
+                  ],
+                ),
               ),
             ),
 

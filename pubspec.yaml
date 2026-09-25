@@ -59,6 +59,7 @@ flutter:
   assets:
     - assets/images/ssite_logo.png
     - assets/images/ssite_logo_cropped.png
+    - assets/images/SSITE4k3k.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
