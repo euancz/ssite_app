@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // BACKGROUND IMAGE
           // =====================================================
           Positioned.fill(
-            child: Image.asset('assets/images/login_bg.png', fit: BoxFit.cover),
+            child: Image.asset('assets/images/Wolf.png', fit: BoxFit.cover),
           ),
 
           // =====================================================
@@ -56,8 +56,8 @@ class _LoginScreenState extends State<LoginScreen> {
             alignment: Alignment.bottomCenter,
             child: Container(
               width: double.infinity,
-              height: MediaQuery.of(context).size.height * 0.82,
-              padding: const EdgeInsets.symmetric(horizontal: 45),
+              height: MediaQuery.of(context).size.height * 0.83,
+              padding: const EdgeInsets.symmetric(horizontal: 56),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
@@ -69,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 47),
+                    const SizedBox(height: 56),
 
                     // WELCOME
                     const Center(
@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Text(
                         'Log in to your account to continue',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 14,
                           color: Color(0xFF555555),
                         ),
                       ),
@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     // EMAIL
                     const Text(
                       'Email',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF777777)),
+                      style: TextStyle(fontSize: 20, color: Color(0xFF888888)),
                     ),
 
                     const SizedBox(height: 3),
@@ -116,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     // PASSWORD
                     const Text(
                       'Password',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF777777)),
+                      style: TextStyle(fontSize: 20, color: Color(0xFF888888)),
                     ),
 
                     const SizedBox(height: 3),
@@ -165,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text(
                           'Remember me',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 14,
                             color: Color(0xFF777777),
                           ),
                         ),
@@ -177,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     // LOGIN BUTTON
                     SizedBox(
                       width: double.infinity,
-                      height: 37,
+                      height: 44,
                       child: ElevatedButton(
                         onPressed: _login,
                         style: ElevatedButton.styleFrom(
@@ -191,14 +191,61 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text(
                           'Login',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 38),
+
+                    const Row(
+                      children: [
+                        Expanded(child: Divider(color: Color(0xFFD8D8D8))),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14),
+                          child: Text(
+                            'Or',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF555555),
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Color(0xFFD8D8D8))),
+                      ],
+                    ),
+
+                    const SizedBox(height: 38),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 41,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          debugPrint('Microsoft sign-in tapped');
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF222222),
+                          side: const BorderSide(color: Color(0xFFC8C8C8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _MicrosoftMark(),
+                            SizedBox(width: 8),
+                            Text(
+                              'Continue with Microsoft',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -228,5 +275,47 @@ class _LoginScreenState extends State<LoginScreen> {
         borderSide: const BorderSide(color: Color(0xFF17617A)),
       ),
     );
+  }
+}
+
+class _MicrosoftMark extends StatelessWidget {
+  const _MicrosoftMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 14,
+      height: 14,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _MicrosoftTile(color: Color(0xFFF25022)),
+              SizedBox(width: 2),
+              _MicrosoftTile(color: Color(0xFF7FBA00)),
+            ],
+          ),
+          SizedBox(height: 2),
+          Row(
+            children: [
+              _MicrosoftTile(color: Color(0xFF00A4EF)),
+              SizedBox(width: 2),
+              _MicrosoftTile(color: Color(0xFFFFB900)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MicrosoftTile extends StatelessWidget {
+  const _MicrosoftTile({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(width: 6, height: 6, child: ColoredBox(color: color));
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:ssiteapp/screens/auth/login_screen.dart';
-import 'screens/main_screen.dart';
-import 'screens/auth/login_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'package:ssiteapp/screens/splash_screen.dart';
 
 void main() {
   runApp(const SSITEApp());
@@ -15,7 +15,11 @@ class SSITEApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SSITE',
-      home: const LoginScreen(),
+      theme: ThemeData(
+        fontFamily: GoogleFonts.poppins().fontFamily,
+        textTheme: GoogleFonts.poppinsTextTheme(),
+      ),
+      home: const SplashScreen(),
     );
   }
 }

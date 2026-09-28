@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../screens/auth/login_screen.dart';
-
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
 
@@ -120,40 +118,6 @@ class Sidebar extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
               },
-            ),
-
-            const Spacer(),
-
-            // =====================================================
-            // LOG OUT
-            // =====================================================
-            Padding(
-              padding: const EdgeInsets.only(left: 15, right: 15, bottom: 10),
-              child: SizedBox(
-                width: double.infinity,
-                height: 28,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2A91B5),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  child: const Text('Log out', style: TextStyle(fontSize: 12)),
-                ),
-              ),
             ),
           ],
         ),

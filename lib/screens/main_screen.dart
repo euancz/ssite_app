@@ -35,8 +35,8 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  void _openDrawer() {
-    _scaffoldKey.currentState?.openDrawer();
+  void _openEndDrawer() {
+    _scaffoldKey.currentState?.openEndDrawer();
   }
 
   @override
@@ -47,7 +47,7 @@ class _MainScreenState extends State<MainScreen> {
       // ==========================================================
       // SIDEBAR
       // ==========================================================
-      drawer: const Sidebar(),
+      endDrawer: const Sidebar(),
 
       backgroundColor: Colors.white,
 
@@ -57,7 +57,7 @@ class _MainScreenState extends State<MainScreen> {
       body: Column(
         children: [
           // HEADER
-          AppHeader(onLogoTap: _openDrawer),
+          AppHeader(onMenuTap: _openEndDrawer),
 
           // CURRENT SCREEN
           Expanded(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AppHeader extends StatelessWidget {
-  final VoidCallback onLogoTap;
+  final VoidCallback onMenuTap;
 
-  const AppHeader({super.key, required this.onLogoTap});
+  const AppHeader({super.key, required this.onMenuTap});
 
   @override
   Widget build(BuildContext context) {
@@ -16,18 +16,15 @@ class AppHeader extends StatelessWidget {
           const SizedBox(width: 8),
 
           // ======================================================
-          // CLICKABLE SSITE LOGO
+          // SSITE LOGO
           // ======================================================
-          GestureDetector(
-            onTap: onLogoTap,
-            child: SizedBox(
-              width: 52,
-              height: 52,
-              child: Image.asset(
-                'assets/images/ssite_logo_cropped.png',
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.high,
-              ),
+          SizedBox(
+            width: 52,
+            height: 52,
+            child: Image.asset(
+              'assets/images/ssite_logo_cropped.png',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
             ),
           ),
 
@@ -55,6 +52,7 @@ class AppHeader extends StatelessWidget {
           // ======================================================
           IconButton(
             onPressed: () {},
+            tooltip: 'Notifications',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             icon: const Icon(
@@ -64,7 +62,15 @@ class AppHeader extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 5),
+          IconButton(
+            onPressed: onMenuTap,
+            tooltip: 'Open menu',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            icon: const Icon(Icons.menu, color: Color(0xFF164B5C), size: 25),
+          ),
+
+          const SizedBox(width: 8),
         ],
       ),
     );

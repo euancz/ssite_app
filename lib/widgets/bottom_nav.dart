@@ -39,17 +39,8 @@ class AppBottomNav extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.add_circle_outline,
-                    size: 28,
+                    size: 36,
                     color: Color(0xFF164B5C),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Add',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: const Color(0xFF164B5C),
-                      fontWeight: FontWeight.normal,
-                    ),
                   ),
                 ],
               ),
@@ -74,7 +65,7 @@ class AppBottomNav extends StatelessWidget {
     required int index,
   }) {
     final bool selected = selectedIndex == index;
-    final Color activeColor = const Color(0xFF123E4C);
+    final Color activeColor = const Color(0xFF082F3A);
     final Color inactiveColor = const Color(0xFF164B5C);
 
     return GestureDetector(
