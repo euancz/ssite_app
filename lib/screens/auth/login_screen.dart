@@ -1,321 +1,132 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
 
-import '../main_screen.dart';
+import '../../app_theme.dart';
+import '../../services/cms_api.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.errorMessage});
+  final String? errorMessage;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController = TextEditingController();
+  bool _openingSignIn = false;
+  String? _launchError;
 
-  final TextEditingController _passwordController = TextEditingController();
-
-  bool _hidePassword = true;
-  bool _rememberMe = false;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  void _login() {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-
-    debugPrint('Email: $email');
-    debugPrint('Password: $password');
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const MainScreen()),
-    );
+  Future<void> _signInWithMicrosoft() async {
+    setState(() { _openingSignIn = true; _launchError = null; });
+    final loginUri = cmsMicrosoftLoginUri(browserUri: kIsWeb ? Uri.base : null);
+    try {
+      final opened = await launchUrl(loginUri,
+          mode: LaunchMode.externalApplication,
+          webOnlyWindowName: kIsWeb ? '_self' : null);
+      if (!opened) throw Exception('The browser could not be opened.');
+    } catch (_) {
+      if (mounted) setState(() => _launchError = 'Could not open Microsoft sign-in. Check the CMS address and try again.');
+    } finally {
+      if (mounted) setState(() => _openingSignIn = false);
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          // =====================================================
-          // BACKGROUND IMAGE
-          // =====================================================
-          Positioned.fill(
-            child: Image.asset('assets/images/Wolf.png', fit: BoxFit.cover),
-          ),
-
-          // =====================================================
-          // WHITE LOGIN PANEL
-          // =====================================================
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              width: double.infinity,
-              height: MediaQuery.of(context).size.height * 0.83,
-              padding: const EdgeInsets.symmetric(horizontal: 56),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(38),
-                  topRight: Radius.circular(38),
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  height: 220,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: line),
+                  ),
+                  child: Stack(
+                    children: [
+                      const Positioned.fill(child: CustomPaint(painter: _LoginGridPainter())),
+                      Center(child: Image.asset('assets/images/rawri-26-27-community.jpg', width: 250, fit: BoxFit.contain)),
+                    ],
+                  ),
                 ),
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 56),
-
-                    // WELCOME
-                    const Center(
-                      child: Text(
-                        'Welcome',
-                        style: TextStyle(
-                          fontSize: 31,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF103D4C),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    const Center(
-                      child: Text(
-                        'Log in to your account to continue',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF555555),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // EMAIL
-                    const Text(
-                      'Email',
-                      style: TextStyle(fontSize: 20, color: Color(0xFF888888)),
-                    ),
-
-                    const SizedBox(height: 3),
-
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: _inputDecoration(),
-                    ),
-
-                    const SizedBox(height: 13),
-
-                    // PASSWORD
-                    const Text(
-                      'Password',
-                      style: TextStyle(fontSize: 20, color: Color(0xFF888888)),
-                    ),
-
-                    const SizedBox(height: 3),
-
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: _hidePassword,
-                      decoration: _inputDecoration(
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _hidePassword = !_hidePassword;
-                            });
-                          },
-                          icon: Icon(
-                            _hidePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: const Color(0xFF999999),
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 9),
-
-                    // REMEMBER ME
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: Checkbox(
-                            value: _rememberMe,
-                            onChanged: (value) {
-                              setState(() {
-                                _rememberMe = value ?? false;
-                              });
-                            },
-                            side: const BorderSide(color: Color(0xFFD0D0D0)),
-                            activeColor: const Color(0xFF17617A),
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        const Text(
-                          'Remember me',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF777777),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // LOGIN BUTTON
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF17617A),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 38),
-
-                    const Row(
-                      children: [
-                        Expanded(child: Divider(color: Color(0xFFD8D8D8))),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 14),
-                          child: Text(
-                            'Or',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF555555),
-                            ),
-                          ),
-                        ),
-                        Expanded(child: Divider(color: Color(0xFFD8D8D8))),
-                      ],
-                    ),
-
-                    const SizedBox(height: 38),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 41,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          debugPrint('Microsoft sign-in tapped');
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF222222),
-                          side: const BorderSide(color: Color(0xFFC8C8C8)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _MicrosoftMark(),
-                            SizedBox(width: 8),
-                            Text(
-                              'Continue with Microsoft',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 28),
+                const Text(
+                  'Welcome to SSITE',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: navy),
                 ),
-              ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Sign in with your Mabalacat City College Microsoft account to continue.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: muted, fontSize: 14, height: 1.5),
+                ),
+                const SizedBox(height: 24),
+                if (widget.errorMessage != null || _launchError != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFFFEEEE), borderRadius: BorderRadius.circular(10)),
+                    child: Text(_launchError ?? widget.errorMessage!, style: const TextStyle(color: Color(0xFF9B1C1C), fontSize: 13)),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                SizedBox(
+                  height: 54,
+                  child: FilledButton.icon(
+                    onPressed: _openingSignIn ? null : _signInWithMicrosoft,
+                    style: FilledButton.styleFrom(backgroundColor: navy, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    icon: _openingSignIn ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const _MicrosoftMark(),
+                    label: const Text('Continue with Microsoft', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text('Your account is verified securely by the SSITE website.', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 11)),
+              ],
             ),
           ),
-        ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  InputDecoration _inputDecoration({Widget? suffixIcon}) {
-    return InputDecoration(
-      suffixIcon: suffixIcon,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(4),
-        borderSide: const BorderSide(color: Color(0xFFD5D5D5)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(4),
-        borderSide: const BorderSide(color: Color(0xFFD5D5D5)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(4),
-        borderSide: const BorderSide(color: Color(0xFF17617A)),
-      ),
-    );
+class _LoginGridPainter extends CustomPainter {
+  const _LoginGridPainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0x183A9EAE)..strokeWidth = 1;
+    for (double x = 0; x < size.width; x += 20) { canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint); }
+    for (double y = 0; y < size.height; y += 20) { canvas.drawLine(Offset(0, y), Offset(size.width, y), paint); }
   }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _MicrosoftMark extends StatelessWidget {
   const _MicrosoftMark();
-
   @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 14,
-      height: 14,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _MicrosoftTile(color: Color(0xFFF25022)),
-              SizedBox(width: 2),
-              _MicrosoftTile(color: Color(0xFF7FBA00)),
-            ],
-          ),
-          SizedBox(height: 2),
-          Row(
-            children: [
-              _MicrosoftTile(color: Color(0xFF00A4EF)),
-              SizedBox(width: 2),
-              _MicrosoftTile(color: Color(0xFFFFB900)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const SizedBox(
+    width: 18,
+    height: 18,
+    child: Column(children: [
+      Row(children: [_MicrosoftTile(color: Color(0xFFF25022)), SizedBox(width: 2), _MicrosoftTile(color: Color(0xFF7FBA00))]),
+      SizedBox(height: 2),
+      Row(children: [_MicrosoftTile(color: Color(0xFF00A4EF)), SizedBox(width: 2), _MicrosoftTile(color: Color(0xFFFFB900))]),
+    ]),
+  );
 }
 
 class _MicrosoftTile extends StatelessWidget {
   const _MicrosoftTile({required this.color});
-
   final Color color;
-
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(width: 6, height: 6, child: ColoredBox(color: color));
-  }
+  Widget build(BuildContext context) => SizedBox(width: 8, height: 8, child: ColoredBox(color: color));
 }
