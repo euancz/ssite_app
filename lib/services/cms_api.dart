@@ -82,6 +82,7 @@ class CmsPost {
     required this.id,
     required this.title,
     required this.description,
+    this.contentHtml,
     this.module = 'articles',
     this.author = 'Former member',
     this.authorRole,
@@ -97,6 +98,7 @@ class CmsPost {
     this.academicYear,
     this.semester,
   });
+  final String? contentHtml;
   final int id;
   final String title, description, module, author;
   final String? authorRole,
@@ -123,6 +125,7 @@ class CmsPost {
     id: (json['id'] as num?)?.toInt() ?? 0,
     title: json['title'] as String? ?? 'Untitled',
     description: json['description'] as String? ?? '',
+    contentHtml: json['content_html'] as String?,
     module: json['module'] as String? ?? 'articles',
     author: json['author'] as String? ?? 'Former member',
     authorRole: json['author_role'] as String?,
@@ -307,6 +310,36 @@ class CmsApi {
     }
     return target;
   }
+
+  Future<Uri> openAccountSession(String destination) async {
+    final uri = _base.resolve('account/session');
+    final response = await _client
+        .post(
+          uri,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            ...imageHeaders,
+          },
+          body: jsonEncode({'destination': destination}),
+        )
+        .timeout(const Duration(seconds: 20));
+    if (response.statusCode == 401) throw CmsUnauthorized();
+    if (response.statusCode != 200) {
+      throw http.ClientException('Could not open account page.', uri);
+    }
+    final target = Uri.parse(
+      resolveCmsImageUrl(
+        (jsonDecode(response.body) as Map<String, dynamic>)['url'] as String,
+      ),
+    );
+    if (target.origin != _base.origin) {
+      throw http.ClientException('Invalid account address.', uri);
+    }
+    return target;
+  }
+
+  Future<CmsHome> discover() async => CmsHome.fromJson(await _get('discover'));
 
   Future<CmsHome> home() async => CmsHome.fromJson(await _get('home'));
   Future<CmsAbout> about() async => CmsAbout.fromJson(await _get('about'));

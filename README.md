@@ -47,3 +47,28 @@ The default CMS URL targets Laravel on port 8000 from an Android emulator. A phy
 ## Verification
 
 Run flutter analyze --no-pub and flutter test --no-pub for native source and widget checks. The CMS integration tests are in tests/Feature/MobileApiTest.php and run with php artisan test --filter=MobileApiTest from SSITECMS.
+
+## Web and mobile consistency
+
+Discover starts with an All view using the website's exact featured-article and
+recent activity/achievement selection via `/api/mobile/v1/discover`. Category
+tabs retain searchable, sortable, paginated native feeds.
+
+Full articles render `content_html` produced by the same sanitized Laravel
+renderer as the web detail page. Feed excerpts remain plain text. Older API
+responses without rich content still display their plain descriptions. Article
+links open in the system browser. Post cards support the system share sheet and
+retain Copy link as a fallback.
+
+Every signed-in account can open Edit profile, Notifications, and Search all
+content from the account menu. Notifications and global search also have header
+shortcuts. These open the existing responsive CMS pages, preserving profile
+validation, profile pictures, notification read/dismiss actions, and global
+search behavior. Native platforms use the embedded browser; web/other desktop
+platforms use the browser. The separate account handoff accepts only three fixed
+destinations, expires after one minute, and checks token revocation and profile
+completion again when redeemed. It does not grant workspace permissions.
+
+After adding the sharing plugin, fully restart/rebuild the app. Windows desktop
+plugin builds require symlink support (Developer Mode). Regression coverage is
+in `MobileParityTest.php`, `cms_api_test.dart`, and `cms_pages_test.dart`.

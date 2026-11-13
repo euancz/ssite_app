@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -40,6 +42,36 @@ class _MainScreenState extends State<MainScreen> {
       }
     } catch (_) {
       if (mounted) setState(() => _canAccessWorkspace = false);
+    }
+  }
+
+  Future<void> _openAccount(String destination) async {
+    try {
+      final uri = await _api.openAccountSession(destination);
+      if (!mounted) return;
+      if (!kIsWeb &&
+          [
+            TargetPlatform.android,
+            TargetPlatform.iOS,
+            TargetPlatform.macOS,
+          ].contains(defaultTargetPlatform)) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => WorkspaceScreen(uri: uri)),
+        );
+      } else if (!await launchUrl(uri, webOnlyWindowName: '_self')) {
+        throw StateError('Could not open page');
+      }
+      await _loadAccount();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not open page. Check your connection and try again.',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -126,6 +158,16 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Search all content',
+            icon: const Icon(Icons.search),
+            onPressed: () => _openAccount('search'),
+          ),
+          IconButton(
+            tooltip: 'Notifications',
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => _openAccount('notifications'),
+          ),
           if (_canAccessWorkspace)
             IconButton(
               tooltip: 'Workspace',
@@ -142,7 +184,9 @@ class _MainScreenState extends State<MainScreen> {
             tooltip: 'Account options',
             icon: const Icon(Icons.account_circle_outlined),
             onSelected: (value) {
-              if (value == 'workspace') {
+              if (['profile', 'notifications', 'search'].contains(value)) {
+                _openAccount(value);
+              } else if (value == 'workspace') {
                 _openWorkspace();
               } else if (value == 'refresh') {
                 _keys[_tab].currentState?.reload();
@@ -152,6 +196,18 @@ class _MainScreenState extends State<MainScreen> {
               }
             },
             itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'profile',
+                child: Text('Edit profile'),
+              ),
+              const PopupMenuItem(
+                value: 'notifications',
+                child: Text('Notifications'),
+              ),
+              const PopupMenuItem(
+                value: 'search',
+                child: Text('Search all content'),
+              ),
               if (_canAccessWorkspace)
                 const PopupMenuItem(
                   value: 'workspace',
@@ -260,7 +316,9 @@ class _CmsPageState extends State<CmsPage> {
   late final _api = widget.api ?? CmsApi.instance;
   final _search = TextEditingController();
   bool _introExpanded = false;
-  String _module = 'articles';
+  String _appliedQuery = '';
+  String _module = 'all';
+  CmsHome? _discover;
   String _sort = 'recent';
   String _category = '', _semester = '', _academicYear = '';
   Map<String, List<String>> _documentOptions = {};
@@ -293,6 +351,7 @@ class _CmsPageState extends State<CmsPage> {
 
   Future<void> reload() async {
     final request = ++_request;
+    _appliedQuery = _search.text.trim();
     setState(() {
       _loading = true;
       _error = null;
@@ -302,13 +361,16 @@ class _CmsPageState extends State<CmsPage> {
       if (widget.kind == 'home') {
         final result = await _api.home();
         if (mounted && request == _request) setState(() => _home = result);
+      } else if (widget.kind == 'discover' && _module == 'all') {
+        final result = await _api.discover();
+        if (mounted && request == _request) setState(() => _discover = result);
       } else if (widget.kind == 'about') {
         final result = await _api.about();
         if (mounted && request == _request) setState(() => _about = result);
       } else {
         final result = await _api.postsPage(
           widget.kind == 'discover' ? _module : widget.kind,
-          query: _search.text,
+          query: _appliedQuery,
           sort: _sort,
           filters: _documentQuery,
         );
@@ -334,7 +396,7 @@ class _CmsPageState extends State<CmsPage> {
     try {
       final next = await _api.postsPage(
         widget.kind == 'discover' ? _module : widget.kind,
-        query: _search.text,
+        query: _appliedQuery,
         sort: _sort,
         filters: _documentQuery,
         page: page.currentPage + 1,
@@ -373,17 +435,17 @@ class _CmsPageState extends State<CmsPage> {
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1045),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: kind == 'home' ? 0 : 20,
-                  vertical: kind == 'home' ? 0 : 24,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1045),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: kind == 'home' ? 0 : 20,
+                    vertical: kind == 'home' ? 0 : 24,
+                  ),
+                  child: CmsHero(name: name, label: title),
                 ),
-                child: CmsHero(name: name, label: title),
               ),
             ),
-          ),
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 864),
@@ -403,6 +465,10 @@ class _CmsPageState extends State<CmsPage> {
                       _Failure(error: _error!, onRetry: reload)
                     else if (kind == 'home' && _home != null)
                       ..._homeContent(_home!)
+                    else if (kind == 'discover' &&
+                        _module == 'all' &&
+                        _discover != null)
+                      ..._discoverContent(_discover!)
                     else if (kind == 'about' && _about != null)
                       ..._aboutContent(_about!)
                     else
@@ -529,6 +595,7 @@ class _CmsPageState extends State<CmsPage> {
         child: Row(
           children: [
             for (final entry in {
+              'all': 'All',
               'articles': 'Articles',
               'activities': 'Activities',
               'achievements': 'Achievements',
@@ -550,78 +617,144 @@ class _CmsPageState extends State<CmsPage> {
       ),
       const SizedBox(height: 14),
     ],
-    TextField(
-      controller: _search,
-      textInputAction: TextInputAction.search,
-      onSubmitted: (_) => reload(),
-      decoration: InputDecoration(
-        hintText: 'Search title',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: IconButton(
-          tooltip: 'Search',
-          icon: const Icon(Icons.arrow_forward),
-          onPressed: reload,
-        ),
-      ),
-    ),
-    const SizedBox(height: 16),
-    if (widget.kind == 'documents') ...[
-      ExpansionTile(
-        title: const Text(
-          'Filters',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
-        leading: const Icon(Icons.tune, size: 20),
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(top: 8, bottom: 8),
-        shape: const Border(),
-        collapsedShape: const Border(),
-        maintainState: true,
-        children: _documentFilters(),
-      ),
-      const SizedBox(height: 12),
-    ],
-    Row(
-      children: [
-        Expanded(
-          child: Text(
-            widget.kind == 'documents'
-                ? 'Official documents'
-                : widget.kind == 'liquidations'
-                ? 'Transactions'
-                : _module[0].toUpperCase() + _module.substring(1),
-            style: const TextStyle(fontWeight: FontWeight.w700),
+    if (widget.kind != 'discover' || _module != 'all') ...[
+      TextField(
+        controller: _search,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => reload(),
+        decoration: InputDecoration(
+          hintText: 'Search title',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _search,
+            builder: (context, value, child) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (value.text.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Clear search',
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _search.clear();
+                      reload();
+                    },
+                  ),
+                IconButton(
+                  tooltip: 'Search',
+                  icon: const Icon(Icons.arrow_forward),
+                  onPressed: reload,
+                ),
+              ],
+            ),
           ),
         ),
-        DropdownButton<String>(
-          underline: const SizedBox.shrink(),
-          value: _sort,
-          items: const [
-            DropdownMenuItem(
-              value: 'recent',
-              child: Text('Most recent', style: TextStyle(fontSize: 12)),
-            ),
-            DropdownMenuItem(
-              value: 'oldest',
-              child: Text('Oldest', style: TextStyle(fontSize: 12)),
-            ),
-            DropdownMenuItem(
-              value: 'title',
-              child: Text('Title (A to Z)', style: TextStyle(fontSize: 12)),
-            ),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              _sort = value;
-              reload();
-            }
-          },
+      ),
+      const SizedBox(height: 16),
+      if (widget.kind == 'documents') ...[
+        ExpansionTile(
+          title: Text(
+            _documentQuery.isEmpty
+                ? 'Filters'
+                : 'Filters (${_documentQuery.length} active)',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          leading: const Icon(Icons.tune, size: 20),
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(top: 8, bottom: 8),
+          shape: const Border(),
+          collapsedShape: const Border(),
+          maintainState: true,
+          children: _documentFilters(),
         ),
+        const SizedBox(height: 12),
       ],
-    ),
-    const Divider(),
-    const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              widget.kind == 'documents'
+                  ? 'Official documents'
+                  : widget.kind == 'liquidations'
+                  ? 'Transactions'
+                  : _module[0].toUpperCase() + _module.substring(1),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          DropdownButton<String>(
+            underline: const SizedBox.shrink(),
+            value: _sort,
+            items: const [
+              DropdownMenuItem(
+                value: 'recent',
+                child: Text('Most recent', style: TextStyle(fontSize: 12)),
+              ),
+              DropdownMenuItem(
+                value: 'oldest',
+                child: Text('Oldest', style: TextStyle(fontSize: 12)),
+              ),
+              DropdownMenuItem(
+                value: 'title',
+                child: Text('Title (A to Z)', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                _sort = value;
+                reload();
+              }
+            },
+          ),
+        ],
+      ),
+      const Divider(),
+      const SizedBox(height: 8),
+      if (_appliedQuery.isNotEmpty || _documentQuery.isNotEmpty)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () {
+              _search.clear();
+              _category = _semester = _academicYear = '';
+              reload();
+            },
+            icon: const Icon(Icons.filter_alt_off_outlined),
+            label: const Text('Clear search and filters'),
+          ),
+        ),
+    ],
   ];
+
+  List<Widget> _discoverContent(CmsHome data) {
+    final sections = {
+      'Articles': data.articles,
+      'Activities': data.activities,
+      'Achievements': data.achievements,
+    };
+    final stories = [
+      ...data.articles,
+      ...data.activities,
+      ...data.achievements,
+    ];
+    return [
+      const _Heading('Stories & Highlights'),
+      if (stories.isEmpty)
+        const _Empty('No published stories yet')
+      else ...[
+        const Text(
+          'Featured',
+          style: TextStyle(color: muted, fontWeight: FontWeight.w600),
+        ),
+        _NewsCard(post: stories.first),
+        for (final section in sections.entries) ...[
+          _Heading(section.key),
+          if (section.value.isEmpty)
+            _Empty('No published ${section.key.toLowerCase()} yet')
+          else
+            _NewsCard(post: section.value.first),
+        ],
+      ],
+    ];
+  }
 
   List<Widget> _documentFilters() => [
     _filter(
@@ -690,7 +823,13 @@ class _CmsPageState extends State<CmsPage> {
   List<Widget> _feedContent() {
     final data = _page;
     if (data == null || data.items.isEmpty) {
-      return [const _Empty('No published posts match your search.')];
+      return [
+        _Empty(
+          _appliedQuery.isNotEmpty || _documentQuery.isNotEmpty
+              ? 'No matches. Try another keyword or clear your search and filters.'
+              : 'No posts have been published yet.',
+        ),
+      ];
     }
     return [
       Text(
@@ -802,20 +941,20 @@ class CmsPostCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    post.author,
+                    post.author.isEmpty ? 'Former member' : post.author,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontSize: 14,
                     ),
                   ),
                   if (post.authorRole?.isNotEmpty == true)
                     Text(
                       post.authorRole!,
-                      style: const TextStyle(color: muted, fontSize: 11),
+                      style: const TextStyle(color: muted, fontSize: 12),
                     ),
                   Text(
                     '${formatCmsDate(post.createdAt ?? post.date)} · ${post.moduleLabel}',
-                    style: const TextStyle(color: muted, fontSize: 11),
+                    style: const TextStyle(color: muted, fontSize: 12),
                   ),
                 ],
               ),
@@ -824,9 +963,22 @@ class CmsPostCard extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         if (post.category?.isNotEmpty == true)
-          Text(
-            'Category: ${post.category}',
-            style: const TextStyle(color: muted, fontSize: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF3FC),
+              border: Border.all(color: line),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              post.category!,
+              semanticsLabel: 'Category: ${post.category}',
+              style: const TextStyle(
+                color: ink,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         const SizedBox(height: 4),
         Text(
@@ -834,10 +986,21 @@ class CmsPostCard extends StatelessWidget {
           style: const TextStyle(
             fontSize: 19,
             fontWeight: FontWeight.w700,
-            height: 1.25,
+            height: 1.35,
           ),
         ),
-        if (post.description.isNotEmpty) ...[
+        if (full && post.contentHtml?.isNotEmpty == true)
+          Html(
+            data: post.contentHtml!,
+            onLinkTap: (url, attributes, element) async {
+              final uri = Uri.tryParse(url ?? '');
+              if (uri != null &&
+                  ['https', 'http', 'mailto'].contains(uri.scheme)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+          )
+        else if (post.description.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
             post.description,
@@ -891,6 +1054,37 @@ class CmsPostCard extends StatelessWidget {
               TextButton(
                 onPressed: () => _openPost(context, post),
                 child: const Text('Read full post'),
+              ),
+            if (post.url != null)
+              Builder(
+                builder: (shareContext) => TextButton.icon(
+                  onPressed: () async {
+                    final box = shareContext.findRenderObject() as RenderBox?;
+                    try {
+                      await SharePlus.instance.share(
+                        ShareParams(
+                          text: '${post.title}\n${post.url}',
+                          title: post.title,
+                          sharePositionOrigin: box == null
+                              ? null
+                              : box.localToGlobal(Offset.zero) & box.size,
+                        ),
+                      );
+                    } catch (_) {
+                      if (shareContext.mounted) {
+                        ScaffoldMessenger.of(shareContext).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Sharing is unavailable. Use Copy link instead.',
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.share_outlined, size: 18),
+                  label: const Text('Share'),
+                ),
               ),
             if (post.url != null)
               TextButton.icon(

@@ -6,6 +6,41 @@ import 'package:http/testing.dart';
 import 'package:ssiteapp/services/cms_api.dart';
 
 void main() {
+  test(
+    'account handoff sends the destination and rejects foreign origins',
+    () async {
+      final api = CmsApi(
+        baseUrl: 'https://cms.example/api/mobile/v1',
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/mobile/v1/account/session');
+          expect(request.headers['Authorization'], 'Bearer session');
+          expect(jsonDecode(request.body), {'destination': 'profile'});
+          return http.Response(
+            jsonEncode({
+              'url': 'https://evil.example/auth/mobile/account?code=secret',
+            }),
+            200,
+          );
+        }),
+      )..accessToken = 'session';
+      await expectLater(
+        api.openAccountSession('profile'),
+        throwsA(isA<http.ClientException>()),
+      );
+    },
+  );
+
+  test('keeps server-rendered rich article content separate from excerpts', () {
+    final post = CmsPost.fromJson({
+      'id': 1,
+      'title': 'Rich',
+      'description': 'Bold',
+      'content_html': '<p><strong>Bold</strong></p>',
+    });
+    expect(post.description, 'Bold');
+    expect(post.contentHtml, '<p><strong>Bold</strong></p>');
+  });
+
   test('passes session, search, sort and pagination to the CMS', () async {
     final api = CmsApi(
       baseUrl: 'https://cms.example/api/mobile/v1',

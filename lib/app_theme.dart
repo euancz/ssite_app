@@ -55,8 +55,8 @@ ThemeData buildAppTheme() => ThemeData(
     ),
   ).apply(fontFamily: 'Poppins', bodyColor: ink, displayColor: ink),
   appBarTheme: const AppBarTheme(
-    backgroundColor: Color(0xFF7BD0ED),
-    foregroundColor: Color(0xFF063847),
+    backgroundColor: Colors.white,
+    foregroundColor: ink,
     surfaceTintColor: Colors.transparent,
     elevation: 0,
     toolbarHeight: 72,
@@ -105,13 +105,13 @@ ThemeData buildAppTheme() => ThemeData(
     textStyle: TextStyle(fontFamily: 'Poppins', fontSize: 14, color: ink),
   ),
   navigationBarTheme: NavigationBarThemeData(
-    backgroundColor: const Color(0xFF7BD0ED),
-    indicatorColor: const Color(0xFFB9E8F7),
+    backgroundColor: Colors.white,
+    indicatorColor: const Color(0xFFEAF3FC),
     labelTextStyle: WidgetStateProperty.all(
       const TextStyle(
         fontFamily: 'Poppins',
         color: Color(0xFF063847),
-        fontSize: 10,
+        fontSize: 12,
       ),
     ),
     iconTheme: WidgetStateProperty.all(

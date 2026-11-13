@@ -34,6 +34,25 @@ CmsApi testApi({bool workspace = false}) => CmsApi(
         200,
       );
     }
+    if (path.endsWith('/discover')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'articles': [
+              {
+                'id': 9,
+                'title': 'Featured CMS story',
+                'description': 'Featured story',
+                'module': 'articles',
+              },
+            ],
+            'activities': [],
+            'achievements': [],
+          },
+        }),
+        200,
+      );
+    }
     if (path.endsWith('/about')) {
       return http.Response(
         jsonEncode({
@@ -65,6 +84,44 @@ CmsApi testApi({bool workspace = false}) => CmsApi(
 );
 
 void main() {
+  testWidgets('full articles render the CMS rich body and provide sharing', (
+    tester,
+  ) async {
+    const post = CmsPost(
+      id: 1,
+      title: 'Formatted',
+      description: 'Plain excerpt',
+      contentHtml:
+          '<h2>Section heading</h2><p><strong>Bold body</strong></p><ul><li>List entry</li></ul><p><a href="https://example.com">Read source</a></p>',
+      url: 'https://cms.example/articles/1',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(),
+        home: const Scaffold(
+          body: SingleChildScrollView(
+            child: CmsPostCard(post: post, full: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Plain excerpt'), findsNothing);
+    expect(
+      find.textContaining('Section heading', findRichText: true),
+      findsWidgets,
+    );
+    expect(find.textContaining('Bold body', findRichText: true), findsWidgets);
+    expect(find.textContaining('List entry', findRichText: true), findsWidgets);
+    expect(
+      find.textContaining('Read source', findRichText: true),
+      findsWidgets,
+    );
+    expect(find.text('Share'), findsOneWidget);
+    expect(find.text('Copy link'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final allowed in [false, true]) {
     testWidgets('workspace entry follows server permission: $allowed', (
       tester,
@@ -90,6 +147,9 @@ void main() {
       await tester.tap(find.byTooltip('Account options'));
       await tester.pumpAndSettle();
       expect(find.text('Workspace'), allowed ? findsOneWidget : findsNothing);
+      expect(find.text('Edit profile'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Search all content'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
@@ -141,12 +201,16 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Discover'));
       await tester.pumpAndSettle();
-      expect(find.text('articles CMS post 1'), findsOneWidget);
+      expect(find.text('Featured CMS story'), findsWidgets);
+      expect(find.text('Featured'), findsOneWidget);
       expect(tester.takeException(), isNull);
       for (final label in ['Transparency', 'Documents', 'About us', 'Home']) {
-        await tester.tap(find.descendant(
-          of: find.byType(CmsNavigation), matching: find.text(label),
-        ));
+        await tester.tap(
+          find.descendant(
+            of: find.byType(CmsNavigation),
+            matching: find.text(label),
+          ),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       }

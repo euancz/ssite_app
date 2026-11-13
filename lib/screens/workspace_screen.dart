@@ -81,14 +81,14 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
               ),
               const Spacer(),
               IconButton(
-                tooltip: 'Previous workspace page',
+                tooltip: 'Previous page',
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () async {
                   if (await _controller.canGoBack()) await _controller.goBack();
                 },
               ),
               IconButton(
-                tooltip: 'Reload workspace',
+                tooltip: 'Reload page',
                 icon: const Icon(Icons.refresh),
                 onPressed: () {
                   setState(() => _failed = false);
@@ -108,7 +108,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Could not load the workspace. Check your connection. If the link expired, close this screen and reopen Workspace.',
+                'Could not load the page. Check your connection. If the link expired, close this screen and reopen it from the app.',
               ),
             ),
           Expanded(child: WebViewWidget(controller: _controller)),
