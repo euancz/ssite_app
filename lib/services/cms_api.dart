@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_feed.dart';
 
 const _configuredCmsApiBaseUrl = String.fromEnvironment('SSITE_API_BASE_URL');
 const _configuredCmsWebBaseUrl = String.fromEnvironment('SSITE_WEB_BASE_URL');
@@ -37,22 +39,6 @@ String get cmsWebBaseUrl {
       )
       .toString()
       .replaceFirst(RegExp(r'/$'), '');
-}
-
-Uri cmsMicrosoftLoginUri({Uri? browserUri}) {
-  final uri = Uri.parse('$cmsWebBaseUrl/auth/microsoft/mobile');
-  return browserUri == null
-      ? uri
-      : uri.replace(
-          queryParameters: {
-            'return_url': Uri(
-              scheme: browserUri.scheme,
-              host: browserUri.host,
-              port: browserUri.hasPort ? browserUri.port : null,
-              path: browserUri.path,
-            ).toString(),
-          },
-        );
 }
 
 /// Preserve asset paths while replacing an unreachable Laravel localhost origin.
@@ -164,15 +150,34 @@ List<CmsOfficer> _officers(dynamic value) => (value as List? ?? const [])
     .map(CmsOfficer.fromJson)
     .toList();
 
+class CmsSponsor {
+  const CmsSponsor({
+    required this.name,
+    required this.description,
+    this.logoUrl,
+    this.websiteUrl,
+  });
+  final String name, description;
+  final String? logoUrl, websiteUrl;
+  factory CmsSponsor.fromJson(Map<String, dynamic> json) => CmsSponsor(
+    name: json['name'] as String? ?? '',
+    description: json['description'] as String? ?? '',
+    logoUrl: _url(json['logo_url']),
+    websiteUrl: json['website_url'] as String?,
+  );
+}
+
 class CmsHome {
   const CmsHome({
     required this.articles,
     required this.activities,
     required this.achievements,
     this.officers = const [],
+    this.sponsors = const [],
   });
   final List<CmsPost> articles, activities, achievements;
   final List<CmsOfficer> officers;
+  final List<CmsSponsor> sponsors;
   factory CmsHome.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? const {};
     return CmsHome(
@@ -180,6 +185,10 @@ class CmsHome {
       activities: _posts(data['activities']),
       achievements: _posts(data['achievements']),
       officers: _officers(data['officers']),
+      sponsors: (data['sponsors'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(CmsSponsor.fromJson)
+          .toList(),
     );
   }
 }
@@ -249,9 +258,12 @@ class CmsUnauthorized implements Exception {}
 
 class CmsApi {
   CmsApi({http.Client? client, this.baseUrl})
-    : _client = client ?? http.Client();
+    : _client = client ?? http.Client(),
+      _customClient = client != null;
   static final CmsApi instance = CmsApi();
   final http.Client _client;
+  final bool _customClient;
+  bool get supportsWebsite => baseUrl != null || _customClient;
   final String? baseUrl;
   String? accessToken;
   Uri get _base {
@@ -276,6 +288,15 @@ class CmsApi {
     String path, [
     Map<String, String>? query,
   ]) async {
+    if (!supportsWebsite) {
+      try {
+        return await SupabaseFeed(
+          Supabase.instance.client,
+        ).get(path, query ?? {});
+      } on AuthException {
+        throw CmsUnauthorized();
+      }
+    }
     final uri = _base.resolve(path).replace(queryParameters: query);
     final response = await _client
         .get(uri, headers: {'Accept': 'application/json', ...imageHeaders})
@@ -360,54 +381,4 @@ class CmsApi {
   );
   Future<List<CmsPost>> posts(String module, {String query = ''}) async =>
       (await postsPage(module, query: query)).items;
-
-  Future<String> exchangeLoginCode(String code) async {
-    final uri = _base.resolve('auth/exchange');
-    final response = await _client
-        .post(
-          uri,
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({'code': code}),
-        )
-        .timeout(const Duration(seconds: 20));
-    if (response.statusCode != 200) {
-      throw http.ClientException(
-        'Microsoft sign-in could not be verified.',
-        uri,
-      );
-    }
-    return (jsonDecode(response.body) as Map<String, dynamic>)['token']
-        as String;
-  }
-
-  Future<bool> validateAccessToken(String token) async {
-    final uri = _base.resolve('auth/me');
-    final response = await _client
-        .get(
-          uri,
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        )
-        .timeout(const Duration(seconds: 20));
-    if (response.statusCode == 401) return false;
-    if (response.statusCode != 200) {
-      throw http.ClientException('Could not verify the saved session.', uri);
-    }
-    return true;
-  }
-
-  Future<void> revokeAccessToken() async {
-    if (accessToken == null) return;
-    await _client
-        .post(
-          _base.resolve('auth/logout'),
-          headers: {'Accept': 'application/json', ...imageHeaders},
-        )
-        .timeout(const Duration(seconds: 20));
-  }
 }

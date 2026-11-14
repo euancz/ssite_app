@@ -1,74 +1,102 @@
-# SSITE Mobile App
+﻿# SSITE app: local website, shared APK
 
-Flutter mobile client for the SSITE CMS. Articles, activities, achievements, published documents, transparency reports, and officer lists are read from Laravel; the CMS remains the source of truth for published content.
+The website stays on your computer. The APK reads published content from Supabase over HTTPS, so recipients can use it on any internet connection while your computer is off. They sign in with their `mcc.edu.ph` Microsoft account. No LAN address, localhost URL, tunnel, or website deployment is needed in the APK.
 
-## Local setup
+## How website information appears in the app
 
-1. Start the Laravel CMS on the port used by its Microsoft callback:
+1. Start your website as usual and sign in as an authorized officer/adviser.
+2. Create or edit an article, activity, achievement, document, transparency report, or officer entry.
+3. Submit and approve the post using the existing review workflow. Pending, rejected, and archived content is excluded.
+4. The website saves a safe copy in Supabase `mobile_publications` and copies attachments into the private `ssite-mobile` bucket. With `SSITE_MOBILE_SYNC=true`, this happens automatically when records are saved.
+5. In the app, pull down to refresh or choose Account > Refresh. Open Discover for articles/activities/achievements, Documents for PDFs, Transparency for reports, and About us for officers.
 
-   ```powershell
-   cd SSITECMS
-   php artisan serve --host=0.0.0.0 --port=8000
-   ```
+Recipients do not need a new APK for content changes. They need internet. Content does not update in real time until refreshed. Already synced content remains available when your computer is off. The app's website workspace/profile/notifications links are hidden because those pages only exist on your computer. Content search remains available inside each feed.
 
-2. From `ssiteapp`, run `flutter run -d chrome` for the browser or `flutter run` for an Android emulator. The default CMS URL is `http://localhost:8000` in the browser and `http://10.0.2.2:8000` on Android. Browser sign-in uses the same tab and returns to the Flutter app; native sign-in returns through `ssiteapp://`.
+## One-time backend setup
 
-   For XAMPP on port 80, override the URL explicitly:
+The current Supabase project is configured in `lib/main.dart`. Public project URL and publishable key belong in the app; database passwords, S3 secrets, and service-role keys must stay on the website.
 
-   ```powershell
-   flutter run --dart-define=SSITE_WEB_BASE_URL=http://localhost/elective/SSITECMS/public
-   ```
+The website must use the SAME Supabase PostgreSQL database as the app's project. In `SSITECMS/.env`, retain your existing `DB_*` values and configure:
 
-   Use `10.0.2.2` instead of `localhost` for an Android emulator. For a physical phone, use the computer's LAN address. You can also supply `SSITE_API_BASE_URL` when the API is hosted separately.
+```dotenv
+SSITE_MOBILE_SYNC=true
+SUPABASE_MOBILE_BUCKET=ssite-mobile
+SUPABASE_S3_ENDPOINT=https://YOUR_PROJECT_REF.storage.supabase.co/storage/v1/s3
+SUPABASE_S3_REGION=YOUR_PROJECT_REGION
+SUPABASE_S3_ACCESS_KEY_ID=YOUR_S3_ACCESS_KEY
+SUPABASE_S3_SECRET_ACCESS_KEY=YOUR_S3_SECRET
+```
 
-3. Set Laravel's `APP_URL` and `MICROSOFT_REDIRECT_URI` to the CMS address reachable by the sign-in browser. The current local callback is `http://localhost:8000/auth/microsoft/callback`; register that exact URL in Microsoft. For emulator/phone sign-in, use a registered callback address reachable from that device.
+S3 credentials come from Supabase Storage settings. Originals can remain on your computer; the mobile disk uploads separate copies. `MEDIA_STORAGE` does not need to change. Retain local originals, since the local website still uses them.
 
-4. Local Laravel environments accept localhost browser return ports automatically. For a deployed Flutter web app, set `SSITE_WEB_ORIGINS=https://app.example.com` in Laravel (comma-separated exact origins, including ports when applicable), and launch/build Flutter with `--dart-define=SSITE_WEB_BASE_URL=https://cms.example.com`. Clear Laravel's config cache after changing these settings.
+From `SSITECMS`:
 
-The app requires Microsoft sign-in before opening the content tabs. Laravel issues a short-lived one-time sign-in code and a revocable 30-day app token; mobile content and image requests require that token. Sign out from the account menu to revoke the app token.
+```powershell
+php artisan config:clear
+php artisan migrate --path=database/migrations/2026_11_14_000001_create_mobile_publications.php
+php artisan mobile:sync
+```
 
-The API lives in `SSITECMS/routes/api.php`; the app's API client, sign-in gate, and login screen are in `lib/services/cms_api.dart`, `lib/app_gate.dart`, and `lib/screens/auth/login_screen.dart`.
+The migration creates the private bucket and read-only app permissions. It does not open private CMS tables to app users. The initial sync publishes existing approved content. Run `php artisan mobile:sync` again after importing data, bulk database edits, changing author names, or recovering from an upload failure. Normal website saves sync automatically. Do not enable the flag on a different/local database: the app needs the shared Supabase database.
 
-## Native CMS screens
+In Supabase Dashboard > Authentication > Providers > Azure, enable Microsoft with your Microsoft application credentials. Microsoft must have this Web redirect URI:
 
-The app follows the CMS navigation: Home, Discover, Transparency, Documents, and About us. Discover switches between Articles, Activities, and Achievements. Feeds support server-side search, sorting, pagination, pull-to-refresh, full-post reading, image zoom, and copying CMS post links. Documents include semester, category, and academic-year filters where available.
+```text
+https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback
+```
 
-The public navigation uses five persistent bottom tabs below 768px and a top tab row at larger widths, matching the CMS mobile web navigation. Articles, Activities, and Achievements remain inside Discover.
+In Supabase Authentication > URL Configuration > Redirect URLs, allow:
 
-Workspace access is read from the CMS `/auth/me` capability response. Authorized accounts see a Workspace shortcut in the header and account menu. On Android, iOS, and macOS it opens the existing responsive CMS workspace inside an embedded WebView, preserving every existing sidebar destination, form, and role policy. Browser and unsupported desktop builds open the CMS workspace in the browser. Students and officers without content permissions do not receive workspace access. Refresh rechecks the current account permissions.
+```text
+ssiteapp://auth/callback
+http://localhost:5173
+```
 
-Opening Workspace exchanges a one-minute, single-use code for a normal CMS web session; the long-lived mobile token never enters a browser URL. Both code issuance and redemption check the current account capabilities. The WebView clears its cookies when opened and closed to isolate app accounts. A full restart of the Flutter application is required after adding the WebView plugin.
-Published PDF requests use the mobile bearer token, the existing file policies, and private range responses. PDFs open in the native viewer. Pending and archived records are excluded from mobile listings and file endpoints.
+The first address is for Android APKs; the second is for the optional browser preview. The native callback is already registered in AndroidManifest.xml. Microsoft sign-in requires internet but never calls your local Laravel server. Configure the Azure tenant for your school. Database policies independently require the Azure provider and `mcc.edu.ph` email domain.
 
-Section banners use a taller mobile layout with readable Poppins text below 768px, matching the responsive CMS. Home and desktop banners load the CMS SVG artwork with bundled offline fallbacks. The mobile tab bar shares the header background color. The Poppins and Pixelify Sans fonts are bundled under assets/fonts with their licenses. If the CMS hero designs change, refresh the bundled copies in assets/heroes for offline consistency.
+## Run and build
 
-The default CMS URL targets Laravel on port 8000 from an Android emulator. A physical phone needs SSITE_API_BASE_URL set to the development computer's LAN address; localhost on a phone points to the phone itself. The API and Microsoft sign-in callback must both be reachable from that device.
+From `ssiteapp`:
+
+```powershell
+flutter pub get
+flutter run
+flutter build apk --release
+```
+
+Share `build/app/outputs/flutter-apk/app-release.apk`. The project currently uses the debug signing configuration for release builds; keep the signing key consistent for updates and configure your own release keystore for long-term distribution.
+
+For another Supabase project:
+
+```powershell
+flutter build apk --release --dart-define=SSITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co --dart-define=SSITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_KEY
+```
+
+For a browser preview:
+
+```powershell
+flutter run -d chrome --web-port=5173
+```
+
+The old `SSITE_WEB_BASE_URL` / `SSITE_API_BASE_URL` settings no longer select the shared app's content backend. The Laravel client remains available for existing integration tests; the distributed app uses Supabase.
+
+## Confirm it works before sharing
+
+1. Approve a recognizable post on the website.
+2. Refresh the app and find it in the appropriate section. Open its image/PDF if present.
+3. Stop the website, turn off Wi-Fi on your phone, and use mobile data. Close and reopen the app and refresh. The published information should still load.
+4. Restart the website, archive the post, then refresh the app. It should disappear.
+5. Install the APK on another Android phone and sign in with an allowed Microsoft account.
+
+Private file links expire after one hour. Refresh to obtain new links. Archiving/deleting stops new reads/signing immediately through database policies; an already issued signed link remains usable until expiry. Downloaded files cannot be recalled.
+
+If sign-in does not return to the app, check the Supabase native redirect allow list. If content fails, check Supabase Data API availability and migrations. If content is empty, confirm the account is an Azure school account and run `php artisan mobile:sync`. If attachments fail, check the website S3 credentials and rerun the sync. Schema/bucket changes require an administrator; no privileged keys should be added to the APK.
 
 ## Verification
 
-Run flutter analyze --no-pub and flutter test --no-pub for native source and widget checks. The CMS integration tests are in tests/Feature/MobileApiTest.php and run with php artisan test --filter=MobileApiTest from SSITECMS.
+```powershell
+flutter analyze --no-pub
+flutter test --no-pub
+```
 
-## Web and mobile consistency
-
-Discover starts with an All view using the website's exact featured-article and
-recent activity/achievement selection via `/api/mobile/v1/discover`. Category
-tabs retain searchable, sortable, paginated native feeds.
-
-Full articles render `content_html` produced by the same sanitized Laravel
-renderer as the web detail page. Feed excerpts remain plain text. Older API
-responses without rich content still display their plain descriptions. Article
-links open in the system browser. Post cards support the system share sheet and
-retain Copy link as a fallback.
-
-Every signed-in account can open Edit profile, Notifications, and Search all
-content from the account menu. Notifications and global search also have header
-shortcuts. These open the existing responsive CMS pages, preserving profile
-validation, profile pictures, notification read/dismiss actions, and global
-search behavior. Native platforms use the embedded browser; web/other desktop
-platforms use the browser. The separate account handoff accepts only three fixed
-destinations, expires after one minute, and checks token revocation and profile
-completion again when redeemed. It does not grant workspace permissions.
-
-After adding the sharing plugin, fully restart/rebuild the app. Windows desktop
-plugin builds require symlink support (Developer Mode). Regression coverage is
-in `MobileParityTest.php`, `cms_api_test.dart`, and `cms_pages_test.dart`.
+From `SSITECMS`, run `php artisan test --filter=Mobile` for the API, publishing, permissions, and formatting regressions. Supabase access uses row-level security and short-lived private file links: https://supabase.com/docs/guides/storage/security/access-control

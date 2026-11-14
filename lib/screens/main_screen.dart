@@ -158,16 +158,18 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Search all content',
-            icon: const Icon(Icons.search),
-            onPressed: () => _openAccount('search'),
-          ),
-          IconButton(
-            tooltip: 'Notifications',
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => _openAccount('notifications'),
-          ),
+          if (_api.supportsWebsite)
+            IconButton(
+              tooltip: 'Search all content',
+              icon: const Icon(Icons.search),
+              onPressed: () => _openAccount('search'),
+            ),
+          if (_api.supportsWebsite)
+            IconButton(
+              tooltip: 'Notifications',
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () => _openAccount('notifications'),
+            ),
           if (_canAccessWorkspace)
             IconButton(
               tooltip: 'Workspace',
@@ -196,18 +198,21 @@ class _MainScreenState extends State<MainScreen> {
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'profile',
-                child: Text('Edit profile'),
-              ),
-              const PopupMenuItem(
-                value: 'notifications',
-                child: Text('Notifications'),
-              ),
-              const PopupMenuItem(
-                value: 'search',
-                child: Text('Search all content'),
-              ),
+              if (_api.supportsWebsite)
+                const PopupMenuItem(
+                  value: 'profile',
+                  child: Text('Edit profile'),
+                ),
+              if (_api.supportsWebsite)
+                const PopupMenuItem(
+                  value: 'notifications',
+                  child: Text('Notifications'),
+                ),
+              if (_api.supportsWebsite)
+                const PopupMenuItem(
+                  value: 'search',
+                  child: Text('Search all content'),
+                ),
               if (_canAccessWorkspace)
                 const PopupMenuItem(
                   value: 'workspace',
@@ -435,17 +440,17 @@ class _CmsPageState extends State<CmsPage> {
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1045),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: kind == 'home' ? 0 : 20,
-                    vertical: kind == 'home' ? 0 : 24,
-                  ),
-                  child: CmsHero(name: name, label: title),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1045),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: kind == 'home' ? 0 : 20,
+                  vertical: kind == 'home' ? 0 : 24,
                 ),
+                child: CmsHero(name: name, label: title),
               ),
             ),
+          ),
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 864),
@@ -551,6 +556,10 @@ class _CmsPageState extends State<CmsPage> {
       'Recognizing the partners and sponsors whose support, collaboration, and shared vision help SSITE create meaningful opportunities for IT students and the community.',
       style: TextStyle(color: muted, height: 1.7, fontSize: 14),
     ),
+    const SizedBox(height: 16),
+    if (data.sponsors.isEmpty)
+      const _Empty('Our partners and sponsors will be announced soon.'),
+    for (final sponsor in data.sponsors) _SponsorCard(sponsor: sponsor),
   ];
 
   List<Widget> _aboutContent(CmsAbout data) => [
@@ -1322,7 +1331,7 @@ class _Failure extends StatelessWidget {
         Text(
           error is CmsUnauthorized
               ? 'Your session has expired. Sign out and sign in again.'
-              : 'Cannot reach the SSITE CMS.',
+              : 'Cannot load SSITE content.',
           textAlign: TextAlign.center,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
@@ -1574,4 +1583,67 @@ void _openPdf(BuildContext context, CmsPost post) {
       ),
     ),
   );
+}
+
+class _SponsorCard extends StatelessWidget {
+  const _SponsorCard({required this.sponsor});
+  final CmsSponsor sponsor;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = Uri.tryParse(sponsor.websiteUrl ?? '');
+    final canVisit =
+        uri != null &&
+        uri.hasAuthority &&
+        (uri.scheme == 'https' || uri.scheme == 'http');
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (sponsor.logoUrl != null) ...[
+              Center(
+                child: Image.network(
+                  sponsor.logoUrl!,
+                  height: 100,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, error, stack) =>
+                      const Icon(Icons.business, size: 64),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Text(sponsor.name, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(sponsor.description),
+            if (canVisit)
+              TextButton.icon(
+                onPressed: () async {
+                  try {
+                    if (!await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    )) {
+                      throw StateError('Could not open page');
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Could not open the sponsor page.'),
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('Visit Official Page'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

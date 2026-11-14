@@ -1,11 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:http/http.dart' as http;
-
-import '../services/cms_api.dart';
 
 /// Desktop artwork and a readable mobile composition of the same CMS banner.
 class CmsHero extends StatelessWidget {
@@ -15,17 +10,6 @@ class CmsHero extends StatelessWidget {
   static final _artwork = <String, Future<String>>{};
 
   static Future<String> _load(String name) async {
-    try {
-      final response = await http
-          .get(Uri.parse('$cmsWebBaseUrl/images/heroes/hero-$name.svg'))
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        final source = utf8.decode(response.bodyBytes);
-        if (source.contains('<svg')) return source;
-      }
-    } catch (_) {
-      // The design remains available while the CMS is unreachable.
-    }
     return rootBundle.loadString('assets/heroes/hero-$name.svg');
   }
 
