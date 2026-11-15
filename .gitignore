@@ -75,3 +75,25 @@ __pycache__/
 *~
 Thumbs.db
 Desktop.ini
+
+# Private credentials and machine-specific tooling.
+*.pem
+*.key
+/secrets/
+/credentials/
+/.mcp.json
+/.codex/
+/.vscode/
+
+# Temporary files, test reports, and exported data.
+*.tmp
+*.bak
+*.orig
+*.rej
+/tmp/
+/test-results/
+/playwright-report/
+/backups/
+/exports/
+*.dump
+*.sql.gz
