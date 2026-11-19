@@ -40,13 +40,52 @@ class _NewsCard extends StatelessWidget {
   );
 }
 
-class CmsPostCard extends StatelessWidget {
+class CmsPostCard extends StatefulWidget {
   const CmsPostCard({super.key, required this.post, this.full = false});
   final CmsPost post;
   final bool full;
   @override
-  Widget build(BuildContext context) => _Surface(
-    child: Column(
+  State<CmsPostCard> createState() => _CmsPostCardState();
+}
+
+class _CmsPostCardState extends State<CmsPostCard> {
+  late bool _liked = widget.post.likedByViewer ?? false;
+  late int _likeCount = widget.post.likeCount ?? 0;
+  bool _updatingLike = false;
+
+  Future<void> _toggleLike() async {
+    if (_updatingLike) return;
+    setState(() => _updatingLike = true);
+    try {
+      final result = await CmsApi.instance.toggleLike(
+        widget.post.module,
+        widget.post.id,
+        !_liked,
+      );
+      if (!mounted) return;
+      setState(() {
+        _liked = result['liked'] == true;
+        _likeCount = (result['like_count'] as num?)?.toInt() ?? _likeCount;
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not update the like. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updatingLike = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = widget.post;
+    final full = widget.full;
+    return _Surface(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -171,6 +210,38 @@ class CmsPostCard extends StatelessWidget {
         ],
         const SizedBox(height: 8),
         const Divider(color: line),
+        if (post.viewCount != null || post.likeCount != null) ...[
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              if (post.viewCount != null)
+                _Meta(
+                  icon: Icons.visibility_outlined,
+                  text:
+                      '${post.viewCount} ${post.viewCount == 1 ? 'view' : 'views'}',
+                ),
+              if (post.likeCount != null)
+                TextButton.icon(
+                  onPressed: _updatingLike ? null : _toggleLike,
+                  icon: Icon(
+                    _liked
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _updatingLike
+                        ? 'Updating…'
+                        : '$_likeCount ${_likeCount == 1 ? 'like' : 'likes'}',
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _liked ? Colors.red : muted,
+                  ),
+                ),
+            ],
+          ),
+        ],
         Wrap(
           alignment: WrapAlignment.spaceBetween,
           spacing: 12,
@@ -227,8 +298,9 @@ class CmsPostCard extends StatelessWidget {
           ],
         ),
       ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 void _openPost(BuildContext context, CmsPost post) =>

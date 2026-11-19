@@ -10,7 +10,7 @@ import 'package:ssiteapp/screens/main_screen.dart';
 import 'package:ssiteapp/widgets/cms_navigation.dart';
 import 'package:ssiteapp/services/cms_api.dart';
 
-CmsApi testApi({bool workspace = false}) => CmsApi(
+CmsApi testApi({bool workspace = false, List<String>? queries}) => CmsApi(
   client: MockClient((request) async {
     final path = request.url.path;
     if (path.endsWith('/auth/me')) {
@@ -41,12 +41,21 @@ CmsApi testApi({bool workspace = false}) => CmsApi(
             'articles': [
               {
                 'id': 9,
-                'title': 'Featured CMS story',
-                'description': 'Featured story',
+                'title': 'Older CMS article',
+                'description': 'An article from the CMS',
+                'created_at': '2026-11-18T12:00:00+08:00',
                 'module': 'articles',
               },
             ],
-            'activities': [],
+            'activities': [
+              {
+                'id': 10,
+                'title': 'Newest CMS activity',
+                'description': 'An activity from the CMS',
+                'created_at': '2026-11-19T12:00:00+08:00',
+                'module': 'activities',
+              },
+            ],
             'achievements': [],
           },
         }),
@@ -63,6 +72,8 @@ CmsApi testApi({bool workspace = false}) => CmsApi(
     }
     final page = int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
     final module = path.split('/').last;
+    final query = request.url.queryParameters['q'];
+    if (query != null) queries?.add(query);
     return http.Response(
       jsonEncode({
         'data': [
@@ -84,6 +95,38 @@ CmsApi testApi({bool workspace = false}) => CmsApi(
 );
 
 void main() {
+  testWidgets('search suggests a title and submits it when selected', (
+    tester,
+  ) async {
+    final queries = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CmsPage(
+            kind: 'documents',
+            onSelect: (_) {},
+            api: testApi(queries: queries),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final search = find.byType(TextField);
+    final listing = find.text('Official documents');
+    final listingPosition = tester.getTopLeft(listing);
+    await tester.enterText(search, 'cMs p');
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
+    expect(queries, ['cMs p']);
+    final suggestion = find.widgetWithText(ListTile, 'documents CMS post 1');
+    expect(suggestion, findsOneWidget);
+    expect(tester.getTopLeft(listing), listingPosition);
+    await tester.tap(suggestion);
+    await tester.pumpAndSettle();
+    expect(queries, ['cMs p', 'documents CMS post 1']);
+    expect(suggestion, findsNothing);
+  });
+
   testWidgets('full articles render the CMS rich body and provide sharing', (
     tester,
   ) async {
@@ -201,8 +244,9 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Discover'));
       await tester.pumpAndSettle();
-      expect(find.text('Featured CMS story'), findsWidgets);
-      expect(find.text('Featured'), findsOneWidget);
+      expect(find.text('Latest story'), findsOneWidget);
+      expect(find.text('Newest CMS activity'), findsNWidgets(2));
+      expect(find.text('Older CMS article'), findsOneWidget);
       expect(tester.takeException(), isNull);
       for (final label in ['Transparency', 'Documents', 'About us', 'Home']) {
         await tester.tap(

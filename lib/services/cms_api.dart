@@ -83,6 +83,9 @@ class CmsPost {
     this.amount,
     this.academicYear,
     this.semester,
+    this.viewCount,
+    this.likeCount,
+    this.likedByViewer,
   });
   final String? contentHtml;
   final int id;
@@ -99,6 +102,8 @@ class CmsPost {
       amount,
       academicYear,
       semester;
+  final int? viewCount, likeCount;
+  final bool? likedByViewer;
   String get moduleLabel => switch (module) {
     'activities' => 'Activities',
     'achievements' => 'Achievements',
@@ -126,6 +131,10 @@ class CmsPost {
     amount: json['amount']?.toString(),
     academicYear: json['academic_year'] as String?,
     semester: json['semester']?.toString(),
+    viewCount: (json['view_count'] as num?)?.toInt(),
+    likeCount: (json['like_count'] as num?)?.toInt(),
+    likedByViewer: json['liked_by_viewer'] == true ||
+        json['liked_by_viewer'] == 1,
   );
 }
 
@@ -381,4 +390,37 @@ class CmsApi {
   );
   Future<List<CmsPost>> posts(String module, {String query = ''}) async =>
       (await postsPage(module, query: query)).items;
+
+  Future<Map<String, dynamic>> toggleLike(
+    String module,
+    int id,
+    bool liked,
+  ) async {
+    if (!supportsWebsite) {
+      throw UnsupportedError(
+        'Likes require the Laravel CMS API in this app configuration.',
+      );
+    }
+    final uri = _base.resolve('engagement/$module/$id/like');
+    final response = await _client
+        .post(
+          uri,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            ...imageHeaders,
+          },
+          body: jsonEncode({'liked': liked ? '1' : '0'}),
+        )
+        .timeout(const Duration(seconds: 20));
+    if (response.statusCode == 401) throw CmsUnauthorized();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw http.ClientException(
+        'Could not update post engagement.',
+        uri,
+      );
+    }
+    return jsonDecode(utf8.decode(response.bodyBytes))
+        as Map<String, dynamic>;
+  }
 }

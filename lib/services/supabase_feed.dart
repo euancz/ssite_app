@@ -33,25 +33,20 @@ class SupabaseFeed {
   Future<List<Map<String, dynamic>>> _recent(
     String module,
     int limit, {
-    bool featured = false,
     bool eventDate = false,
   }) async {
-    var query = client
-        .from('mobile_publications')
-        .select('payload')
-        .eq('module', module)
-        .order(
-          featured
-              ? 'featured_at'
-              : eventDate
-              ? 'payload->>date'
-              : 'sort_date',
-          ascending: false,
-          nullsFirst: false,
-        );
-    if (featured) query = query.order('sort_date', ascending: false);
     return _payloads(
-      await query.order('record_id', ascending: true).limit(limit),
+      await client
+          .from('mobile_publications')
+          .select('payload')
+          .eq('module', module)
+          .order(
+            eventDate ? 'payload->>date' : 'sort_date',
+            ascending: false,
+            nullsFirst: false,
+          )
+          .order('record_id', ascending: module != 'articles')
+          .limit(limit),
     );
   }
 
@@ -87,7 +82,7 @@ class SupabaseFeed {
     if (path == 'home' || path == 'discover') {
       final limit = path == 'home' ? 1 : 3;
       final groups = await Future.wait([
-        _recent('articles', limit, featured: true),
+        _recent('articles', limit),
         _recent('activities', limit, eventDate: path == 'home'),
         _recent('achievements', limit, eventDate: path == 'home'),
       ]);

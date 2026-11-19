@@ -18,6 +18,10 @@ class CmsPage extends StatefulWidget {
 class _CmsPageState extends State<CmsPage> {
   late final _api = widget.api ?? CmsApi.instance;
   final _search = TextEditingController();
+  final _suggestionOverlay = OverlayPortalController();
+  Timer? _suggestionTimer;
+  int _suggestionRequest = 0;
+  List<String> _suggestions = [];
   bool _introExpanded = false;
   String _appliedQuery = '';
   String _module = 'all';
@@ -48,14 +52,121 @@ class _CmsPageState extends State<CmsPage> {
 
   @override
   void dispose() {
+    _suggestionTimer?.cancel();
     _search.dispose();
     super.dispose();
   }
 
+  void _dismissSuggestions() {
+    _suggestionTimer?.cancel();
+    _suggestionRequest++;
+    if (_suggestionOverlay.isShowing) _suggestionOverlay.hide();
+  }
+
+  void _suggest(String input) {
+    _dismissSuggestions();
+    final query = input.trim();
+    if (query.isEmpty) return;
+    setState(() => _suggestions = []);
+    _suggestionOverlay.show();
+    if (query.runes.length < 2) return;
+    final request = _suggestionRequest;
+    _suggestionTimer = Timer(const Duration(milliseconds: 250), () async {
+      try {
+        final page = await _api.postsPage(
+          widget.kind == 'discover' ? _module : widget.kind,
+          query: query,
+          sort: _sort,
+          filters: _documentQuery,
+        );
+        if (!mounted || request != _suggestionRequest) return;
+        final seen = <String>{};
+        setState(() {
+          _suggestions = page.items
+              .map((post) => post.title.trim())
+              .where((title) => title.isNotEmpty && seen.add(title.toLowerCase()))
+              .take(5)
+              .toList();
+        });
+      } catch (_) {
+        // The user can still submit the search if suggestions fail to load.
+      }
+    });
+  }
+
+  Widget _buildSearchSuggestions(
+    BuildContext context,
+    OverlayChildLayoutInfo layout,
+  ) {
+    final field = MatrixUtils.transformRect(
+      layout.childPaintTransform,
+      Offset.zero & layout.childSize,
+    );
+    final viewportBottom =
+        layout.overlaySize.height - MediaQuery.viewInsetsOf(context).bottom;
+    const gap = 4.0;
+    final below = viewportBottom - field.bottom - gap;
+    final above = field.top - MediaQuery.paddingOf(context).top - gap;
+    final opensUp = below < 140 && above > below;
+    final maxHeight = (opensUp ? above : below).clamp(0.0, 240.0).toDouble();
+    if (maxHeight == 0 || field.bottom < 0 || field.top >= viewportBottom) {
+      return const SizedBox.shrink();
+    }
+
+    return Stack(
+      children: [
+        Positioned(
+          left: field.left,
+          width: field.width,
+          top: opensUp ? null : field.bottom + gap,
+          bottom: opensUp ? layout.overlaySize.height - field.top + gap : null,
+          child: TextFieldTapRegion(
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(8),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: SingleChildScrollView(
+                  primary: false,
+                  child: Column(
+                    children: [
+                      for (final title in _suggestions)
+                        ListTile(
+                          dense: true,
+                          title: Text(title),
+                          onTap: () => _submitSuggestion(title),
+                        ),
+                      ListTile(
+                        dense: true,
+                        title: Text('Search for “${_search.text.trim()}”'),
+                        onTap: _submitSuggestion,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _submitSuggestion([String? title]) {
+    if (title != null) {
+      _search.text = String.fromCharCodes(title.runes.take(100));
+    }
+    FocusScope.of(context).unfocus();
+    reload();
+  }
+
   Future<void> reload() async {
+    _dismissSuggestions();
     final request = ++_request;
     _appliedQuery = _search.text.trim();
     setState(() {
+      _suggestions = [];
       _loading = true;
       _error = null;
       _page = null;
@@ -293,6 +404,48 @@ class _CmsPageState extends State<CmsPage> {
           ),
         ),
     ],
+    const SizedBox(height: 24),
+    const _Heading('Terms & Privacy'),
+    const Card(
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        title: Text('Acceptable use'),
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Use SSITE and its materials for their intended school and organization purposes. Respect authorship and document restrictions. Publishing and administrative tools are limited to assigned roles.',
+            ),
+          ),
+        ],
+      ),
+    ),
+    const Card(
+      child: ExpansionTile(
+        title: Text('Terms of service'),
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Keep your account secure and sign out on shared devices. Report incorrect content or account concerns to ssite@gmail.com.',
+            ),
+          ),
+        ],
+      ),
+    ),
+    const Card(
+      child: ExpansionTile(
+        title: Text('Privacy policy'),
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'SSITE uses your name, school email, and Microsoft account identifier to identify your account. Microsoft handles your Microsoft password. You can manage your photo and account details through profile settings.',
+            ),
+          ),
+        ],
+      ),
+    ),
   ];
 
   List<Widget> _filters() => [
@@ -325,33 +478,33 @@ class _CmsPageState extends State<CmsPage> {
       const SizedBox(height: 14),
     ],
     if (widget.kind != 'discover' || _module != 'all') ...[
-      TextField(
-        controller: _search,
-        textInputAction: TextInputAction.search,
-        onSubmitted: (_) => reload(),
-        decoration: InputDecoration(
-          hintText: 'Search title',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _search,
-            builder: (context, value, child) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (value.text.isNotEmpty)
-                  IconButton(
-                    tooltip: 'Clear search',
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      _search.clear();
-                      reload();
-                    },
-                  ),
-                IconButton(
-                  tooltip: 'Search',
-                  icon: const Icon(Icons.arrow_forward),
-                  onPressed: reload,
+      OverlayPortal.overlayChildLayoutBuilder(
+        controller: _suggestionOverlay,
+        overlayChildBuilder: _buildSearchSuggestions,
+        child: TextField(
+          controller: _search,
+          textInputAction: TextInputAction.search,
+          onTap: () {
+            if (!_suggestionOverlay.isShowing) _suggest(_search.text);
+          },
+          onChanged: _suggest,
+          onSubmitted: (_) => _submitSuggestion(),
+          onTapOutside: (_) => _dismissSuggestions(),
+          decoration: InputDecoration(
+            hintText: 'Search title',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _search,
+              builder: (context, value, child) => IconButton(
+                tooltip: value.text.isEmpty ? 'Search' : 'Clear search',
+                icon: Icon(
+                  value.text.isEmpty ? Icons.arrow_forward : Icons.close,
                 ),
-              ],
+                onPressed: () {
+                  _search.clear();
+                  reload();
+                },
+              ),
             ),
           ),
         ),
@@ -437,18 +590,23 @@ class _CmsPageState extends State<CmsPage> {
       'Activities': data.activities,
       'Achievements': data.achievements,
     };
+    int addedAt(CmsPost post) =>
+        DateTime.tryParse(
+          post.createdAt ?? post.date ?? '',
+        )?.millisecondsSinceEpoch ??
+        0;
+
     final stories = [
-      ...data.articles,
-      ...data.activities,
-      ...data.achievements,
-    ];
+      for (final posts in sections.values)
+        if (posts.isNotEmpty) posts.first,
+    ]..sort((a, b) => addedAt(b).compareTo(addedAt(a)));
     return [
       const _Heading('Stories & Highlights'),
       if (stories.isEmpty)
         const _Empty('No published stories yet')
       else ...[
         const Text(
-          'Featured',
+          'Latest story',
           style: TextStyle(color: muted, fontWeight: FontWeight.w600),
         ),
         _NewsCard(post: stories.first),
