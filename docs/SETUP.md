@@ -1,6 +1,37 @@
-# SSITE app: local website, shared APK
+# SSITE app setup
 
-The website stays on your computer. The APK reads published content from Supabase over HTTPS, so recipients can use it on any internet connection while your computer is off. They sign in with their `mcc.edu.ph` Microsoft account. No LAN address, localhost URL, tunnel, or website deployment is needed in the APK.
+## Shareable Android app
+
+The default Android app signs in through Supabase over HTTPS and reads synced
+SSITE content from Supabase. It needs an internet connection and an MCC
+Microsoft account. Recipients can use it while the CMS computer is off.
+
+Tap the account avatar to see your name, school email, and Microsoft 365
+profile photo. The app requests the delegated Microsoft Graph `User.Read`
+permission for the photo. An existing session may need a fresh Microsoft
+sign-in to grant this permission. Accounts with no accessible photo display
+initials. The app is read-only. Use the website for publishing and reviews.
+
+## Optional direct CMS connection
+
+The direct CMS connection uses the website account's name and photo and
+reads published content through the mobile API.
+
+With the updated `SSITECMS` running, start the app from `ssiteapp`:
+
+```powershell
+flutter run --dart-define=SSITE_WEB_BASE_URL=https://your-cms-host
+```
+
+Use a CMS URL reachable from the phone. Set the CMS `APP_URL` and Microsoft
+callback to its reachable address and register the exact callback with
+Microsoft. For browser previews, add the Flutter origin to
+`SSITE_WEB_ORIGINS` and permit it in the CMS API's CORS configuration.
+
+## Published-content access through Supabase
+
+Use the default Supabase configuration for distribution. A CMS URL, USB
+connection, and PHP server are unnecessary for browsing published content.
 
 ## How website information appears in the app
 
@@ -10,7 +41,7 @@ The website stays on your computer. The APK reads published content from Supabas
 4. The website saves a safe copy in Supabase `mobile_publications` and copies attachments into the private `ssite-mobile` bucket. With `SSITE_MOBILE_SYNC=true`, this happens automatically when records are saved.
 5. In the app, pull down to refresh or choose Account > Refresh. Open Discover for articles/activities/achievements, Documents for PDFs, Transparency for reports, and About us for officers.
 
-Recipients do not need a new APK for content changes. They need internet. Content does not update in real time until refreshed. Already synced content remains available when your computer is off. The app's website workspace/profile/notifications links are hidden because those pages only exist on your computer. Content search remains available inside each feed.
+Recipients need internet for published content and can refresh to see updates. The Supabase mode includes global search and browsing for synced publications while your computer is off.
 
 ## One-time backend setup
 
@@ -34,6 +65,8 @@ From `SSITECMS`:
 ```powershell
 php artisan config:clear
 php artisan migrate --path=database/migrations/2026_11_14_000001_create_mobile_publications.php
+php artisan migrate --path=database/migrations/2026_11_14_000002_create_sponsors_table.php
+php artisan migrate --path=database/migrations/2026_11_20_000001_allow_published_sponsors_in_mobile_feed.php
 php artisan mobile:sync
 ```
 
@@ -78,7 +111,7 @@ For a browser preview:
 flutter run -d chrome --web-port=5173
 ```
 
-The old `SSITE_WEB_BASE_URL` / `SSITE_API_BASE_URL` settings no longer select the shared app's content backend. The Laravel client remains available for existing integration tests; the distributed app uses Supabase.
+The default app uses Supabase. Set `SSITE_WEB_BASE_URL` or `SSITE_API_BASE_URL` to select the CMS connection.
 
 ## Confirm it works before sharing
 

@@ -79,7 +79,8 @@ class SupabaseFeed {
         },
       };
     }
-    if (path == 'home' || path == 'discover') {
+    final combinedDiscover = path == 'discover' && params['feed'] == '1';
+    if (path == 'home' || (path == 'discover' && !combinedDiscover)) {
       final limit = path == 'home' ? 1 : 3;
       final groups = await Future.wait([
         _recent('articles', limit),
@@ -129,20 +130,20 @@ class SupabaseFeed {
         },
       };
     }
-    const modules = {
-      'articles',
-      'activities',
-      'achievements',
-      'documents',
-      'liquidations',
-    };
-    if (!modules.contains(path)) {
+    const stories = ['articles', 'activities', 'achievements'];
+    const modules = {...stories, 'documents', 'liquidations'};
+    if (!combinedDiscover && !modules.contains(path)) {
       throw ArgumentError('Unknown content section.');
     }
-    var query = client
-        .from('mobile_publications')
-        .select('payload')
-        .eq('module', path);
+    final type = params['type'];
+    final selectedStory = combinedDiscover && stories.contains(type)
+        ? type
+        : null;
+    final publications = client.from('mobile_publications');
+    var query = publications.select('payload');
+    query = combinedDiscover && selectedStory == null
+        ? query.inFilter('module', stories)
+        : query.eq('module', selectedStory ?? path);
     final search = (params['q'] ?? '').trim();
     if (search.isNotEmpty) {
       final escaped = search
@@ -151,57 +152,125 @@ class SupabaseFeed {
           .replaceAll('_', r'\_');
       query = query.ilike('search_text', '%$escaped%');
     }
-    for (final key in ['category', 'semester', 'academic_year']) {
+    final permittedFilters = switch (selectedStory ?? path) {
+      'documents' => ['category', 'semester', 'academic_year'],
+      'liquidations' => ['semester'],
+      _ when stories.contains(path) => ['category'],
+      _ => <String>[],
+    };
+    for (final key in permittedFilters) {
       final value = params[key];
-      if (path == 'documents' && value != null && value.isNotEmpty) {
+      if (value != null && value.isNotEmpty) {
         query = value == 'unassigned' && key == 'academic_year'
             ? query.isFilter(key, null)
             : query.eq(key, value);
       }
     }
-    final page = (int.tryParse(params['page'] ?? '') ?? 1).clamp(1, 1000000);
-    final sort = params['sort'] ?? 'recent';
-    final result = await query
-        .order(
-          sort == 'title' ? 'title' : 'sort_date',
-          ascending: sort == 'title' || sort == 'oldest',
-        )
-        .order('record_id', ascending: true)
-        .range((page - 1) * 10, page * 10 - 1)
-        .count(CountOption.exact);
-    final filters = <String, List<String>>{};
-    if (path == 'documents') {
-      // Filter choices use the same RLS boundary and paginate past PostgREST's row limit.
-      final categories = <String>{}, years = <String>{};
-      for (var offset = 0; ; offset += 500) {
-        final rows = await client
-            .from('mobile_publications')
-            .select('category,academic_year')
-            .eq('module', path)
-            .order('record_id', ascending: true)
-            .range(offset, offset + 499);
-        for (final row in rows) {
-          if (row['category'] case final String value when value.isNotEmpty) {
-            categories.add(value);
-          }
-          if (row['academic_year'] case final String value
-              when value.isNotEmpty) {
-            years.add(value);
-          }
-        }
-        if (rows.length < 500) break;
+    if (combinedDiscover || stories.contains(path)) {
+      final now = DateTime.now().toUtc();
+      final since = switch (params['period']) {
+        'week' => now.subtract(const Duration(days: 7)),
+        'month' => now.subtract(const Duration(days: 30)),
+        'year' => DateTime.utc(
+          now.year - 1,
+          now.month,
+          now.day,
+          now.hour,
+          now.minute,
+          now.second,
+        ),
+        _ => null,
+      };
+      if (since != null) {
+        query = query.gte('sort_date', since.toIso8601String());
       }
-      filters['category'] = categories.toList()..sort();
-      filters['academic_year'] = years.toList()..sort((a, b) => b.compareTo(a));
     }
+    if (path == 'liquidations') {
+      final event = params['event'];
+      if (event != null && event.isNotEmpty) query = query.eq('title', event);
+      final year = params['year'] ?? '';
+      if (RegExp(r'^[1-9][0-9]{3}$').hasMatch(year) && year != '9999') {
+        final nextYear = int.parse(year) + 1;
+        query = query
+            .gte('payload->>date', '$year-01-01')
+            .lt('payload->>date', '$nextYear-01-01');
+      }
+    }
+    final page = (int.tryParse(params['page'] ?? '') ?? 1).clamp(1, 1000000);
+    final pageSize = combinedDiscover ? 9 : 10;
+    final sort = params['sort'] ?? 'recent';
+    final reportDateSort =
+        path == 'liquidations' &&
+        (sort == 'report_soonest' || sort == 'report_latest');
+    var ordered = query.order(
+      reportDateSort
+          ? 'payload->>date'
+          : sort == 'title'
+          ? 'title'
+          : 'sort_date',
+      ascending:
+          sort == 'title' || sort == 'oldest' || sort == 'report_soonest',
+    );
+    if (combinedDiscover) ordered = ordered.order('module', ascending: true);
+    final result = await ordered
+        .order('record_id', ascending: !combinedDiscover)
+        .range((page - 1) * pageSize, page * pageSize - 1)
+        .count(CountOption.exact);
     return {
       'data': await _payloads(result.data),
       'meta': {
         'current_page': page,
-        'last_page': ((result.count + 9) ~/ 10).clamp(1, 1000000),
+        'last_page': ((result.count + pageSize - 1) ~/ pageSize).clamp(
+          1,
+          1000000,
+        ),
         'total': result.count,
-        'filters': filters,
+        'filters': page == 1 && params['facets'] != '0'
+            ? await _filters(selectedStory ?? path)
+            : <String, List<String>>{},
       },
     };
+  }
+
+  Future<Map<String, List<String>>> _filters(String module) async {
+    final fields = switch (module) {
+      'documents' => {'category': 'category', 'academic_year': 'academic_year'},
+      'liquidations' => {'event': 'title', 'year': 'year:payload->>date'},
+      'articles' || 'activities' || 'achievements' => {'category': 'category'},
+      _ => <String, String>{},
+    };
+    if (fields.isEmpty) return {};
+    final options = {for (final key in fields.keys) key: <String>{}};
+    for (var offset = 0; ; offset += 500) {
+      final rows = await client
+          .from('mobile_publications')
+          .select(fields.values.join(','))
+          .eq('module', module)
+          .order('record_id', ascending: true)
+          .range(offset, offset + 499);
+      for (final row in rows) {
+        for (final key in fields.keys) {
+          if (row[key == 'event' ? 'title' : key] case final String value
+              when value.trim().isNotEmpty) {
+            if (key != 'year') {
+              options[key]!.add(value);
+            } else if (DateTime.tryParse(value) case final date?) {
+              options[key]!.add('${date.year}');
+            }
+          }
+        }
+      }
+      if (rows.length < 500) break;
+    }
+    return options.map(
+      (key, values) => MapEntry(
+        key,
+        values.toList()..sort(
+          (a, b) => key == 'year' || key == 'academic_year'
+              ? b.compareTo(a)
+              : a.compareTo(b),
+        ),
+      ),
+    );
   }
 }

@@ -9,6 +9,7 @@ import 'package:ssiteapp/app_theme.dart';
 import 'package:ssiteapp/screens/main_screen.dart';
 import 'package:ssiteapp/widgets/cms_navigation.dart';
 import 'package:ssiteapp/services/cms_api.dart';
+import 'package:ssiteapp/services/member_profile.dart';
 
 CmsApi testApi({bool workspace = false, List<String>? queries}) => CmsApi(
   client: MockClient((request) async {
@@ -34,30 +35,26 @@ CmsApi testApi({bool workspace = false, List<String>? queries}) => CmsApi(
         200,
       );
     }
-    if (path.endsWith('/discover')) {
+    final discoverType = request.url.queryParameters['type'];
+    if (path.endsWith('/discover') && discoverType == 'all') {
       return http.Response(
         jsonEncode({
-          'data': {
-            'articles': [
-              {
-                'id': 9,
-                'title': 'Older CMS article',
-                'description': 'An article from the CMS',
-                'created_at': '2026-11-18T12:00:00+08:00',
-                'module': 'articles',
-              },
-            ],
-            'activities': [
-              {
-                'id': 10,
-                'title': 'Newest CMS activity',
-                'description': 'An activity from the CMS',
-                'created_at': '2026-11-19T12:00:00+08:00',
-                'module': 'activities',
-              },
-            ],
-            'achievements': [],
-          },
+          'data': [
+            {
+              'id': 10,
+              'title': 'Newest CMS activity',
+              'description': 'An activity from the CMS',
+              'created_at': '2026-11-19T12:00:00+08:00',
+              'module': 'activities',
+            },
+            {
+              'id': 9,
+              'title': 'Older CMS article',
+              'description': 'An article from the CMS',
+              'created_at': '2026-11-18T12:00:00+08:00',
+              'module': 'articles',
+            },
+          ],
         }),
         200,
       );
@@ -71,7 +68,7 @@ CmsApi testApi({bool workspace = false, List<String>? queries}) => CmsApi(
       );
     }
     final page = int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
-    final module = path.split('/').last;
+    final module = discoverType ?? path.split('/').last;
     final query = request.url.queryParameters['q'];
     if (query != null) queries?.add(query);
     return http.Response(
@@ -165,37 +162,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final allowed in [false, true]) {
-    testWidgets('workspace entry follows server permission: $allowed', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(320, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: buildAppTheme(),
-          home: MainScreen(
-            onSignOut: () {},
-            api: testApi(workspace: allowed),
+  testWidgets('account shows the member identity on a narrow phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var signedOut = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(),
+        home: MainScreen(
+          onSignOut: () => signedOut = true,
+          api: testApi(workspace: true),
+          profile: const MemberProfile(
+            name: 'Ari Reyes',
+            email: 'ari@mcc.edu.ph',
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.byTooltip('Workspace'),
-        allowed ? findsOneWidget : findsNothing,
-      );
-      await tester.tap(find.byTooltip('Account options'));
-      await tester.pumpAndSettle();
-      expect(find.text('Workspace'), allowed ? findsOneWidget : findsNothing);
-      expect(find.text('Edit profile'), findsOneWidget);
-      expect(find.text('Notifications'), findsOneWidget);
-      expect(find.text('Search all content'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-  }
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Browse posts'), findsOneWidget);
+    expect(find.text('Workspace'), findsNothing);
+    expect(find.byTooltip('Workspace'), findsNothing);
+    expect(find.text('AR'), findsOneWidget);
+    await tester.tap(find.byTooltip('Account options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ari Reyes'), findsOneWidget);
+    expect(find.text('ari@mcc.edu.ph'), findsOneWidget);
+    expect(find.text('Edit profile'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+    expect(signedOut, isTrue);
+  });
 
   testWidgets('resizing preserves selected tab and all destinations', (
     tester,
@@ -245,7 +247,7 @@ void main() {
       await tester.tap(find.text('Discover'));
       await tester.pumpAndSettle();
       expect(find.text('Latest story'), findsOneWidget);
-      expect(find.text('Newest CMS activity'), findsNWidgets(2));
+      expect(find.text('Newest CMS activity'), findsOneWidget);
       expect(find.text('Older CMS article'), findsOneWidget);
       expect(tester.takeException(), isNull);
       for (final label in ['Transparency', 'Documents', 'About us', 'Home']) {

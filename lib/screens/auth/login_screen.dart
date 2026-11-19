@@ -5,8 +5,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.errorMessage});
+  const LoginScreen({
+    super.key,
+    this.errorMessage,
+    this.onSignIn,
+    this.onPolicies,
+  });
   final String? errorMessage;
+  final Future<void> Function()? onSignIn;
+  final VoidCallback? onPolicies;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -22,11 +29,15 @@ class _LoginScreenState extends State<LoginScreen> {
       _launchError = null;
     });
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(
-        OAuthProvider.azure,
-        redirectTo: kIsWeb ? Uri.base.origin : 'ssiteapp://auth/callback',
-        scopes: 'email',
-      );
+      if (widget.onSignIn case final signIn?) {
+        await signIn();
+      } else {
+        await Supabase.instance.client.auth.signInWithOAuth(
+          OAuthProvider.azure,
+          redirectTo: kIsWeb ? Uri.base.origin : 'ssiteapp://auth/callback',
+          scopes: 'email User.Read',
+        );
+      }
     } on AuthException catch (error) {
       if (mounted) setState(() => _launchError = error.message);
     } catch (_) {
@@ -43,6 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFEDF7FB),
     body: SafeArea(
       child: Center(
         child: SingleChildScrollView(
@@ -56,8 +68,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 220,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: line),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: navy),
+                    boxShadow: const [
+                      BoxShadow(color: navy, offset: Offset(5, 5)),
+                    ],
                   ),
                   child: Stack(
                     children: [
@@ -69,6 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'assets/images/rawri-26-27-community.jpg',
                           width: 250,
                           fit: BoxFit.contain,
+                          semanticLabel: 'SSITE wolf mascot',
                         ),
                       ),
                     ],
@@ -110,13 +126,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
                 SizedBox(
                   height: 54,
-                  child: FilledButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: _openingSignIn ? null : _signInWithMicrosoft,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: navy,
-                      foregroundColor: Colors.white,
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: navy,
+                      side: const BorderSide(color: Color(0xFFA4B9C4)),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                     icon: _openingSignIn
@@ -125,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: navy,
                             ),
                           )
                         : const _MicrosoftMark(),
@@ -136,11 +153,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'Sign in securely with Microsoft through Supabase.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: muted, fontSize: 11),
-                ),
+                if (widget.onPolicies != null)
+                  TextButton(
+                    onPressed: widget.onPolicies,
+                    child: const Text('Terms of Service and Privacy Policy'),
+                  ),
               ],
             ),
           ),

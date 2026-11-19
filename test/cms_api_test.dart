@@ -6,29 +6,24 @@ import 'package:http/testing.dart';
 import 'package:ssiteapp/services/cms_api.dart';
 
 void main() {
-  test(
-    'account handoff sends the destination and rejects foreign origins',
-    () async {
-      final api = CmsApi(
-        baseUrl: 'https://cms.example/api/mobile/v1',
-        client: MockClient((request) async {
-          expect(request.url.path, '/api/mobile/v1/account/session');
-          expect(request.headers['Authorization'], 'Bearer session');
-          expect(jsonDecode(request.body), {'destination': 'profile'});
-          return http.Response(
-            jsonEncode({
-              'url': 'https://evil.example/auth/mobile/account?code=secret',
-            }),
-            200,
-          );
-        }),
-      )..accessToken = 'session';
-      await expectLater(
-        api.openAccountSession('profile'),
-        throwsA(isA<http.ClientException>()),
-      );
-    },
-  );
+  test('exchanges the one-time code with the original sign-in proof', () async {
+    final api = CmsApi(
+      baseUrl: 'https://cms.example/api/mobile/v1',
+      client: MockClient((request) async {
+        expect(request.url.path, '/api/mobile/v1/auth/exchange');
+        expect(request.headers.containsKey('Authorization'), isFalse);
+        expect(jsonDecode(request.body), {
+          'code': 'one-time-code',
+          'code_verifier': 'original-proof',
+        });
+        return http.Response(jsonEncode({'token': 'cms-session'}), 200);
+      }),
+    )..accessToken = 'old-session';
+    expect(
+      await api.exchangeLoginCode('one-time-code', 'original-proof'),
+      'cms-session',
+    );
+  });
 
   test('keeps server-rendered rich article content separate from excerpts', () {
     final post = CmsPost.fromJson({

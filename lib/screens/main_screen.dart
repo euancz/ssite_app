@@ -4,13 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'workspace_screen.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../app_theme.dart';
 import '../services/cms_api.dart';
+import '../services/member_profile.dart';
 import '../widgets/cms_hero.dart';
 import '../widgets/cms_navigation.dart';
 
@@ -20,104 +19,95 @@ part 'content/about_content.dart';
 part 'content/document_content.dart';
 part 'content/sponsor_card.dart';
 part 'content/content_widgets.dart';
+part 'content/global_search.dart';
+part 'content/community_hero.dart';
+part 'member_account.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key, required this.onSignOut, this.api});
+  const MainScreen({
+    super.key,
+    required this.onSignOut,
+    this.api,
+    this.profile,
+  });
   final VoidCallback onSignOut;
   final CmsApi? api;
+  final MemberProfile? profile;
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _tab = 0;
-  bool _canAccessWorkspace = false;
-  bool _openingWorkspace = false;
   late final _api = widget.api ?? CmsApi.instance;
+  late final _profile = ValueNotifier<MemberProfile?>(widget.profile);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadAccount();
   }
 
+  @override
+  void didUpdateWidget(MainScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.profile != null) _profile.value = widget.profile;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _profile.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadAccount();
+    }
+  }
+
   Future<void> _loadAccount() async {
+    if (!_api.supportsWebsite || widget.profile != null) return;
     try {
       final user = await _api.currentUser();
-      if (mounted) {
-        setState(
-          () => _canAccessWorkspace = user['can_access_workspace'] == true,
-        );
-      }
+      if (mounted) _profile.value = MemberProfile.fromCms(user);
+    } on CmsUnauthorized {
+      if (mounted) _endSession();
     } catch (_) {
-      if (mounted) setState(() => _canAccessWorkspace = false);
+      // Keep the last known account options during a connection interruption.
     }
   }
 
-  Future<void> _openAccount(String destination) async {
-    try {
-      final uri = await _api.openAccountSession(destination);
-      if (!mounted) return;
-      if (!kIsWeb &&
-          [
-            TargetPlatform.android,
-            TargetPlatform.iOS,
-            TargetPlatform.macOS,
-          ].contains(defaultTargetPlatform)) {
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => WorkspaceScreen(uri: uri)),
-        );
-      } else if (!await launchUrl(uri, webOnlyWindowName: '_self')) {
-        throw StateError('Could not open page');
-      }
-      await _loadAccount();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not open page. Check your connection and try again.',
-            ),
-          ),
-        );
-      }
+  Future<void> _openAccount() async {
+    final action = await showModalBottomSheet<_AccountAction>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 480),
+      builder: (_) => _MemberAccount(profile: _profile),
+    );
+    if (!mounted) return;
+    if (action == _AccountAction.signOut) {
+      _endSession();
+    } else if (action == _AccountAction.refresh) {
+      _keys[_tab].currentState?.reload();
+      _loadAccount();
     }
   }
 
-  Future<void> _openWorkspace() async {
-    if (_openingWorkspace) return;
-    setState(() => _openingWorkspace = true);
-    try {
-      final uri = await _api.openWorkspaceSession();
-      if (!mounted) return;
-      if (!kIsWeb &&
-          [
-            TargetPlatform.android,
-            TargetPlatform.iOS,
-            TargetPlatform.macOS,
-          ].contains(defaultTargetPlatform)) {
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => WorkspaceScreen(uri: uri)),
-        );
-      } else {
-        if (!await launchUrl(uri, webOnlyWindowName: '_self')) {
-          throw StateError('Could not open workspace');
-        }
-      }
-    } catch (_) {
-      await _loadAccount();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Workspace could not be opened. Check your connection and account access, then try again.',
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _openingWorkspace = false);
-    }
+  void _openSearch() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => _GlobalSearch(api: _api)));
+  }
+
+  void _endSession() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    widget.onSignOut();
   }
 
   final _keys = List.generate(5, (_) => GlobalKey<_CmsPageState>());
@@ -128,13 +118,14 @@ class _MainScreenState extends State<MainScreen> {
     final compact = MediaQuery.sizeOf(context).width < 768;
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 16,
+        backgroundColor: accent,
+        titleSpacing: compact ? 12 : 24,
         title: Row(
           children: [
             Image.asset(
               'assets/images/ssite_logo_cropped.png',
-              width: 40,
-              height: 40,
+              width: compact ? 42 : 60,
+              height: compact ? 42 : 60,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -143,13 +134,13 @@ class _MainScreenState extends State<MainScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      constraints.maxWidth < 240
+                      compact || constraints.maxWidth < 240
                           ? 'SSITE'
                           : 'STUDENT SOCIETY IN INFORMATION\nTECHNOLOGY EDUCATION',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: constraints.maxWidth < 240 ? 18 : 13,
+                        fontSize: compact ? 18 : 13,
                         fontWeight: FontWeight.w700,
                         height: 1.4,
                       ),
@@ -158,7 +149,7 @@ class _MainScreenState extends State<MainScreen> {
                       'Mabalacat City College',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, height: 1.5),
+                      style: TextStyle(fontSize: 10, height: 1.5),
                     ),
                   ],
                 ),
@@ -167,70 +158,21 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         actions: [
-          if (_api.supportsWebsite)
-            IconButton(
-              tooltip: 'Search all content',
-              icon: const Icon(Icons.search),
-              onPressed: () => _openAccount('search'),
-            ),
-          if (_api.supportsWebsite)
-            IconButton(
-              tooltip: 'Notifications',
-              icon: const Icon(Icons.notifications_outlined),
-              onPressed: () => _openAccount('notifications'),
-            ),
-          if (_canAccessWorkspace)
-            IconButton(
-              tooltip: 'Workspace',
-              onPressed: _openingWorkspace ? null : _openWorkspace,
-              icon: _openingWorkspace
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.dashboard_outlined),
-            ),
-          PopupMenuButton<String>(
-            tooltip: 'Account options',
-            icon: const Icon(Icons.account_circle_outlined),
-            onSelected: (value) {
-              if (['profile', 'notifications', 'search'].contains(value)) {
-                _openAccount(value);
-              } else if (value == 'workspace') {
-                _openWorkspace();
-              } else if (value == 'refresh') {
-                _keys[_tab].currentState?.reload();
-                _loadAccount();
-              } else {
-                widget.onSignOut();
-              }
-            },
-            itemBuilder: (_) => [
-              if (_api.supportsWebsite)
-                const PopupMenuItem(
-                  value: 'profile',
-                  child: Text('Edit profile'),
-                ),
-              if (_api.supportsWebsite)
-                const PopupMenuItem(
-                  value: 'notifications',
-                  child: Text('Notifications'),
-                ),
-              if (_api.supportsWebsite)
-                const PopupMenuItem(
-                  value: 'search',
-                  child: Text('Search all content'),
-                ),
-              if (_canAccessWorkspace)
-                const PopupMenuItem(
-                  value: 'workspace',
-                  child: Text('Workspace'),
-                ),
-              const PopupMenuItem(value: 'refresh', child: Text('Refresh')),
-              const PopupMenuItem(value: 'logout', child: Text('Sign out')),
-            ],
+          IconButton(
+            tooltip: 'Search all content',
+            icon: const Icon(Icons.search_rounded),
+            onPressed: _openSearch,
           ),
+          IconButton(
+            tooltip: 'Account options',
+            onPressed: _openAccount,
+            icon: ValueListenableBuilder<MemberProfile?>(
+              valueListenable: _profile,
+              builder: (_, profile, _) =>
+                  _MemberAvatar(profile: profile, size: 36),
+            ),
+          ),
+          const SizedBox(width: 8),
         ],
         bottom: compact
             ? null

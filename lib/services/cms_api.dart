@@ -10,6 +10,9 @@ import 'supabase_feed.dart';
 const _configuredCmsApiBaseUrl = String.fromEnvironment('SSITE_API_BASE_URL');
 const _configuredCmsWebBaseUrl = String.fromEnvironment('SSITE_WEB_BASE_URL');
 
+bool get cmsConnectionConfigured =>
+    _configuredCmsApiBaseUrl.isNotEmpty || _configuredCmsWebBaseUrl.isNotEmpty;
+
 String get cmsApiBaseUrl {
   if (_configuredCmsApiBaseUrl.isNotEmpty) {
     return _configuredCmsApiBaseUrl.replaceFirst(RegExp(r'/$'), '');
@@ -133,8 +136,8 @@ class CmsPost {
     semester: json['semester']?.toString(),
     viewCount: (json['view_count'] as num?)?.toInt(),
     likeCount: (json['like_count'] as num?)?.toInt(),
-    likedByViewer: json['liked_by_viewer'] == true ||
-        json['liked_by_viewer'] == 1,
+    likedByViewer:
+        json['liked_by_viewer'] == true || json['liked_by_viewer'] == 1,
   );
 }
 
@@ -269,7 +272,9 @@ class CmsApi {
   CmsApi({http.Client? client, this.baseUrl})
     : _client = client ?? http.Client(),
       _customClient = client != null;
-  static final CmsApi instance = CmsApi();
+  static final CmsApi instance = CmsApi(
+    baseUrl: cmsConnectionConfigured ? cmsApiBaseUrl : null,
+  );
   final http.Client _client;
   final bool _customClient;
   bool get supportsWebsite => baseUrl != null || _customClient;
@@ -283,9 +288,11 @@ class CmsApi {
   // Never forward the session token to external content/image hosts.
   Map<String, String> headersForUrl(String url) {
     final uri = Uri.tryParse(url);
-    return accessToken != null &&
+    return supportsWebsite &&
+            accessToken != null &&
             uri != null &&
             uri.hasAuthority &&
+            (uri.scheme == 'http' || uri.scheme == 'https') &&
             uri.origin == _base.origin
         ? {'Authorization': 'Bearer $accessToken'}
         : const {};
@@ -320,56 +327,56 @@ class CmsApi {
   Future<Map<String, dynamic>> currentUser() async =>
       (await _get('auth/me'))['user'] as Map<String, dynamic>;
 
-  Future<Uri> openWorkspaceSession() async {
-    final uri = _base.resolve('workspace/session');
-    final response = await _client
-        .post(uri, headers: {'Accept': 'application/json', ...imageHeaders})
-        .timeout(const Duration(seconds: 20));
-    if (response.statusCode == 401) throw CmsUnauthorized();
-    if (response.statusCode != 200) {
-      throw http.ClientException(
-        'Workspace is unavailable for this account.',
-        uri,
-      );
-    }
-    final url =
-        (jsonDecode(response.body) as Map<String, dynamic>)['url'] as String;
-    final target = Uri.parse(resolveCmsImageUrl(url));
-    if (target.origin != _base.origin) {
-      throw http.ClientException('Invalid workspace address.', uri);
-    }
-    return target;
-  }
-
-  Future<Uri> openAccountSession(String destination) async {
-    final uri = _base.resolve('account/session');
+  Future<String> exchangeLoginCode(String code, String verifier) async {
+    final uri = _base.resolve('auth/exchange');
     final response = await _client
         .post(
           uri,
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            ...imageHeaders,
           },
-          body: jsonEncode({'destination': destination}),
+          body: jsonEncode({'code': code, 'code_verifier': verifier}),
         )
         .timeout(const Duration(seconds: 20));
     if (response.statusCode == 401) throw CmsUnauthorized();
     if (response.statusCode != 200) {
-      throw http.ClientException('Could not open account page.', uri);
+      throw http.ClientException('Could not complete CMS sign-in.', uri);
     }
-    final target = Uri.parse(
-      resolveCmsImageUrl(
-        (jsonDecode(response.body) as Map<String, dynamic>)['url'] as String,
-      ),
-    );
-    if (target.origin != _base.origin) {
-      throw http.ClientException('Invalid account address.', uri);
-    }
-    return target;
+    return (jsonDecode(response.body) as Map<String, dynamic>)['token']
+        as String;
   }
 
-  Future<CmsHome> discover() async => CmsHome.fromJson(await _get('discover'));
+  Future<void> revokeSession(String token) => _client
+      .post(
+        _base.resolve('auth/logout'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      )
+      .timeout(const Duration(seconds: 20));
+
+  Future<CmsPostPage> discoverPage({
+    String type = 'all',
+    String query = '',
+    String sort = 'recent',
+    String period = '',
+    String category = '',
+    int page = 1,
+    bool includeOptions = true,
+  }) async => CmsPostPage.fromJson(
+    await _get('discover', {
+      'feed': '1',
+      'type': type,
+      if (query.isNotEmpty) 'q': query,
+      if (period.isNotEmpty) 'period': period,
+      if (category.isNotEmpty) 'category': category,
+      if (!includeOptions) 'facets': '0',
+      'sort': sort,
+      'page': '$page',
+    }),
+  );
 
   Future<CmsHome> home() async => CmsHome.fromJson(await _get('home'));
   Future<CmsAbout> about() async => CmsAbout.fromJson(await _get('about'));
@@ -379,48 +386,17 @@ class CmsApi {
     String sort = 'recent',
     int page = 1,
     Map<String, String> filters = const {},
+    bool includeOptions = true,
   }) async => CmsPostPage.fromJson(
     await _get(module, {
       if (query.trim().isNotEmpty) 'q': query.trim(),
       'sort': sort,
       'page': '$page',
       'per_page': '10',
+      if (!includeOptions) 'facets': '0',
       ...filters,
     }),
   );
   Future<List<CmsPost>> posts(String module, {String query = ''}) async =>
       (await postsPage(module, query: query)).items;
-
-  Future<Map<String, dynamic>> toggleLike(
-    String module,
-    int id,
-    bool liked,
-  ) async {
-    if (!supportsWebsite) {
-      throw UnsupportedError(
-        'Likes require the Laravel CMS API in this app configuration.',
-      );
-    }
-    final uri = _base.resolve('engagement/$module/$id/like');
-    final response = await _client
-        .post(
-          uri,
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            ...imageHeaders,
-          },
-          body: jsonEncode({'liked': liked ? '1' : '0'}),
-        )
-        .timeout(const Duration(seconds: 20));
-    if (response.statusCode == 401) throw CmsUnauthorized();
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw http.ClientException(
-        'Could not update post engagement.',
-        uri,
-      );
-    }
-    return jsonDecode(utf8.decode(response.bodyBytes))
-        as Map<String, dynamic>;
-  }
 }

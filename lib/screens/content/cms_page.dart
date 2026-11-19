@@ -18,24 +18,25 @@ class CmsPage extends StatefulWidget {
 class _CmsPageState extends State<CmsPage> {
   late final _api = widget.api ?? CmsApi.instance;
   final _search = TextEditingController();
+  final _newsAnchor = GlobalKey();
   final _suggestionOverlay = OverlayPortalController();
   Timer? _suggestionTimer;
   int _suggestionRequest = 0;
   List<String> _suggestions = [];
-  bool _introExpanded = false;
   String _appliedQuery = '';
   String _module = 'all';
-  CmsHome? _discover;
   String _sort = 'recent';
   String _category = '', _semester = '', _academicYear = '';
-  Map<String, List<String>> _documentOptions = {};
-  Map<String, String> get _documentQuery => widget.kind == 'documents'
-      ? {
-          if (_category.isNotEmpty) 'category': _category,
-          if (_semester.isNotEmpty) 'semester': _semester,
-          if (_academicYear.isNotEmpty) 'academic_year': _academicYear,
-        }
-      : {};
+  String _period = '', _event = '', _reportYear = '';
+  Map<String, List<String>> _filterOptions = {};
+  Map<String, String> get _feedFilters => {
+    if (_category.isNotEmpty) 'category': _category,
+    if (_semester.isNotEmpty) 'semester': _semester,
+    if (_academicYear.isNotEmpty) 'academic_year': _academicYear,
+    if (_period.isNotEmpty) 'period': _period,
+    if (_event.isNotEmpty) 'event': _event,
+    if (_reportYear.isNotEmpty) 'year': _reportYear,
+  };
   CmsHome? _home;
   CmsAbout? _about;
   CmsPostPage? _page;
@@ -73,18 +74,15 @@ class _CmsPageState extends State<CmsPage> {
     final request = _suggestionRequest;
     _suggestionTimer = Timer(const Duration(milliseconds: 250), () async {
       try {
-        final page = await _api.postsPage(
-          widget.kind == 'discover' ? _module : widget.kind,
-          query: query,
-          sort: _sort,
-          filters: _documentQuery,
-        );
+        final page = await _fetchPage(query, includeOptions: false);
         if (!mounted || request != _suggestionRequest) return;
         final seen = <String>{};
         setState(() {
           _suggestions = page.items
               .map((post) => post.title.trim())
-              .where((title) => title.isNotEmpty && seen.add(title.toLowerCase()))
+              .where(
+                (title) => title.isNotEmpty && seen.add(title.toLowerCase()),
+              )
               .take(5)
               .toList();
         });
@@ -175,23 +173,15 @@ class _CmsPageState extends State<CmsPage> {
       if (widget.kind == 'home') {
         final result = await _api.home();
         if (mounted && request == _request) setState(() => _home = result);
-      } else if (widget.kind == 'discover' && _module == 'all') {
-        final result = await _api.discover();
-        if (mounted && request == _request) setState(() => _discover = result);
       } else if (widget.kind == 'about') {
         final result = await _api.about();
         if (mounted && request == _request) setState(() => _about = result);
       } else {
-        final result = await _api.postsPage(
-          widget.kind == 'discover' ? _module : widget.kind,
-          query: _appliedQuery,
-          sort: _sort,
-          filters: _documentQuery,
-        );
+        final result = await _fetchPage(_appliedQuery);
         if (mounted && request == _request) {
           setState(() {
             _page = result;
-            _documentOptions = result.filters;
+            _filterOptions = result.filters;
           });
         }
       }
@@ -202,19 +192,39 @@ class _CmsPageState extends State<CmsPage> {
     }
   }
 
+  Future<CmsPostPage> _fetchPage(
+    String query, {
+    int page = 1,
+    bool includeOptions = true,
+  }) {
+    if (widget.kind == 'discover') {
+      return _api.discoverPage(
+        type: _module,
+        query: query,
+        sort: _sort,
+        period: _period,
+        category: _category,
+        page: page,
+        includeOptions: includeOptions && page == 1,
+      );
+    }
+    return _api.postsPage(
+      widget.kind,
+      query: query,
+      sort: _sort,
+      filters: _feedFilters,
+      page: page,
+      includeOptions: includeOptions && page == 1,
+    );
+  }
+
   Future<void> _more() async {
     final page = _page;
     if (page == null || !page.hasMore || _loadingMore) return;
     final request = _request;
     setState(() => _loadingMore = true);
     try {
-      final next = await _api.postsPage(
-        widget.kind == 'discover' ? _module : widget.kind,
-        query: _appliedQuery,
-        sort: _sort,
-        filters: _documentQuery,
-        page: page.currentPage + 1,
-      );
+      final next = await _fetchPage(_appliedQuery, page: page.currentPage + 1);
       if (mounted && request == _request) {
         setState(() => _page = next.withItems([...page.items, ...next.items]));
       }
@@ -234,6 +244,7 @@ class _CmsPageState extends State<CmsPage> {
   @override
   Widget build(BuildContext context) {
     final kind = widget.kind;
+    final compact = MediaQuery.sizeOf(context).width < 768;
     final name = kind == 'liquidations' ? 'transparency' : kind;
     final title = switch (kind) {
       'home' => 'Welcome to the SSITE Community!',
@@ -248,27 +259,46 @@ class _CmsPageState extends State<CmsPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1045),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: kind == 'home' ? 0 : 20,
-                  vertical: kind == 'home' ? 0 : 24,
+          if (kind == 'home')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _CommunityHero(
+                  onBrowse: () => widget.onSelect(1),
+                  onUpdates: () {
+                    if (_newsAnchor.currentContext case final anchor?) {
+                      Scrollable.ensureVisible(
+                        anchor,
+                        duration: const Duration(milliseconds: 300),
+                      );
+                    }
+                  },
                 ),
-                child: CmsHero(name: name, label: title),
+                _intro(),
+                SizedBox(key: _newsAnchor),
+              ],
+            )
+          else
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1045),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 16 : 20,
+                    vertical: 24,
+                  ),
+                  child: CmsHero(name: name, label: title),
+                ),
               ),
             ),
-          ),
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 864),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (kind == 'home') ..._intro(),
                     if (kind != 'home' && kind != 'about') ..._filters(),
                     if (_loading)
                       const Padding(
@@ -279,10 +309,6 @@ class _CmsPageState extends State<CmsPage> {
                       _Failure(error: _error!, onRetry: reload)
                     else if (kind == 'home' && _home != null)
                       ..._homeContent(_home!)
-                    else if (kind == 'discover' &&
-                        _module == 'all' &&
-                        _discover != null)
-                      ..._discoverContent(_discover!)
                     else if (kind == 'about' && _about != null)
                       ..._aboutContent(_about!)
                     else
@@ -304,30 +330,65 @@ class _CmsPageState extends State<CmsPage> {
     );
   }
 
-  List<Widget> _intro() => [
-    const SizedBox(height: 20),
-    Image.asset(
-      'assets/images/rawri-26-27-community.jpg',
-      height: 140,
-      fit: BoxFit.contain,
-    ),
-    const SizedBox(height: 16),
-    const _Heading('Welcome to the SSITE Community!'),
-    Text(
-      'Welcome to the official website of the Student Society in Information Technology Education (SSITE) of Mabalacat City College. Stay connected with our latest announcements, activities, articles, and achievements as we bring IT students together through collaboration, innovation, and meaningful experiences.',
-      maxLines: _introExpanded ? null : 4,
-      overflow: _introExpanded ? null : TextOverflow.ellipsis,
-      style: const TextStyle(color: muted, height: 1.7, fontSize: 14),
-    ),
-    Align(
-      alignment: Alignment.centerLeft,
-      child: TextButton(
-        onPressed: () => setState(() => _introExpanded = !_introExpanded),
-        child: Text(_introExpanded ? 'Show less' : 'Read more about SSITE'),
+  Widget _intro() => Padding(
+    padding: const EdgeInsets.only(bottom: 32),
+    child: ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF11D0DF), Color(0xFF64E5EE)],
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ColoredBox(
+              color: Color(0xFF0BA6C0),
+              child: SizedBox(height: 3),
+            ),
+            const SizedBox(height: 32),
+            Image.asset(
+              'assets/images/rawri-community-cutout.png',
+              height: 176,
+              fit: BoxFit.contain,
+              semanticLabel: 'SSITE wolf mascot wearing a hoodie',
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 576),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Welcome to the SSITE Community!',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Welcome to the official website of the Student Society in Information Technology Education (SSITE) of Mabalacat City College. Stay connected with our latest announcements, activities, articles, and achievements as we bring IT students together through collaboration, innovation, and meaningful experiences.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF063847),
+                          height: 1.55,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
-    const SizedBox(height: 28),
-  ];
+  );
 
   List<Widget> _homeContent(CmsHome data) => [
     const _Heading("What's New at SSITE"),
@@ -467,7 +528,10 @@ class _CmsPageState extends State<CmsPage> {
                   selected: _module == entry.key,
                   selectedColor: const Color(0xFFC7ECF9),
                   onSelected: (_) {
+                    if (_module == entry.key) return;
                     _module = entry.key;
+                    _category = '';
+                    _filterOptions = {};
                     reload();
                   },
                 ),
@@ -477,7 +541,7 @@ class _CmsPageState extends State<CmsPage> {
       ),
       const SizedBox(height: 14),
     ],
-    if (widget.kind != 'discover' || _module != 'all') ...[
+    ...[
       OverlayPortal.overlayChildLayoutBuilder(
         controller: _suggestionOverlay,
         overlayChildBuilder: _buildSearchSuggestions,
@@ -491,7 +555,9 @@ class _CmsPageState extends State<CmsPage> {
           onSubmitted: (_) => _submitSuggestion(),
           onTapOutside: (_) => _dismissSuggestions(),
           decoration: InputDecoration(
-            hintText: 'Search title',
+            hintText: widget.kind == 'discover' && _module == 'all'
+                ? 'Search stories'
+                : 'Search title',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: ValueListenableBuilder<TextEditingValue>(
               valueListenable: _search,
@@ -510,12 +576,14 @@ class _CmsPageState extends State<CmsPage> {
         ),
       ),
       const SizedBox(height: 16),
-      if (widget.kind == 'documents') ...[
+      if (widget.kind == 'documents' ||
+          widget.kind == 'liquidations' ||
+          widget.kind == 'discover') ...[
         ExpansionTile(
           title: Text(
-            _documentQuery.isEmpty
+            _feedFilters.isEmpty
                 ? 'Filters'
-                : 'Filters (${_documentQuery.length} active)',
+                : 'Filters (${_feedFilters.length} active)',
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           leading: const Icon(Icons.tune, size: 20),
@@ -524,7 +592,11 @@ class _CmsPageState extends State<CmsPage> {
           shape: const Border(),
           collapsedShape: const Border(),
           maintainState: true,
-          children: _documentFilters(),
+          children: switch (widget.kind) {
+            'documents' => _documentFilters(),
+            'liquidations' => _reportFilters(),
+            _ => _storyFilters(),
+          },
         ),
         const SizedBox(height: 12),
       ],
@@ -536,45 +608,52 @@ class _CmsPageState extends State<CmsPage> {
                   ? 'Official documents'
                   : widget.kind == 'liquidations'
                   ? 'Transactions'
+                  : _module == 'all'
+                  ? 'All stories'
                   : _module[0].toUpperCase() + _module.substring(1),
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
-          DropdownButton<String>(
-            underline: const SizedBox.shrink(),
-            value: _sort,
-            items: const [
-              DropdownMenuItem(
-                value: 'recent',
-                child: Text('Most recent', style: TextStyle(fontSize: 12)),
-              ),
-              DropdownMenuItem(
-                value: 'oldest',
-                child: Text('Oldest', style: TextStyle(fontSize: 12)),
-              ),
-              DropdownMenuItem(
-                value: 'title',
-                child: Text('Title (A to Z)', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                _sort = value;
-                reload();
-              }
-            },
-          ),
+          if (widget.kind != 'liquidations')
+            DropdownButton<String>(
+              underline: const SizedBox.shrink(),
+              value: _sort,
+              items: const [
+                DropdownMenuItem(
+                  value: 'recent',
+                  child: Text('Most recent', style: TextStyle(fontSize: 12)),
+                ),
+                DropdownMenuItem(
+                  value: 'oldest',
+                  child: Text('Oldest', style: TextStyle(fontSize: 12)),
+                ),
+                DropdownMenuItem(
+                  value: 'title',
+                  child: Text('Title (A to Z)', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  _sort = value;
+                  reload();
+                }
+              },
+            ),
         ],
       ),
       const Divider(),
       const SizedBox(height: 8),
-      if (_appliedQuery.isNotEmpty || _documentQuery.isNotEmpty)
+      if (_appliedQuery.isNotEmpty ||
+          _feedFilters.isNotEmpty ||
+          _sort != 'recent')
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             onPressed: () {
               _search.clear();
-              _category = _semester = _academicYear = '';
+              _category = _semester = _academicYear = _period = _event =
+                  _reportYear = '';
+              _sort = 'recent';
               reload();
             },
             icon: const Icon(Icons.filter_alt_off_outlined),
@@ -584,74 +663,109 @@ class _CmsPageState extends State<CmsPage> {
     ],
   ];
 
-  List<Widget> _discoverContent(CmsHome data) {
-    final sections = {
-      'Articles': data.articles,
-      'Activities': data.activities,
-      'Achievements': data.achievements,
-    };
-    int addedAt(CmsPost post) =>
-        DateTime.tryParse(
-          post.createdAt ?? post.date ?? '',
-        )?.millisecondsSinceEpoch ??
-        0;
+  List<Widget> _storyFilters() => [
+    _filter(
+      'Date range',
+      _period,
+      const {
+        '': 'Any time',
+        'week': 'Past week',
+        'month': 'Past month',
+        'year': 'Past year',
+      },
+      (value) {
+        _period = value;
+        reload();
+      },
+    ),
+    if (_module != 'all' && _filterOptions['category']?.isNotEmpty == true)
+      _categoryFilter(),
+  ];
 
-    final stories = [
-      for (final posts in sections.values)
-        if (posts.isNotEmpty) posts.first,
-    ]..sort((a, b) => addedAt(b).compareTo(addedAt(a)));
-    return [
-      const _Heading('Stories & Highlights'),
-      if (stories.isEmpty)
-        const _Empty('No published stories yet')
-      else ...[
-        const Text(
-          'Latest story',
-          style: TextStyle(color: muted, fontWeight: FontWeight.w600),
-        ),
-        _NewsCard(post: stories.first),
-        for (final section in sections.entries) ...[
-          _Heading(section.key),
-          if (section.value.isEmpty)
-            _Empty('No published ${section.key.toLowerCase()} yet')
-          else
-            _NewsCard(post: section.value.first),
-        ],
-      ],
-    ];
-  }
+  List<Widget> _reportFilters() => [
+    _filter(
+      'Event name',
+      _event,
+      {
+        '': 'All events',
+        for (final event in _filterOptions['event'] ?? <String>[]) event: event,
+      },
+      (value) {
+        _event = value;
+        reload();
+      },
+    ),
+    _filter(
+      'Report year',
+      _reportYear,
+      {
+        '': 'All report years',
+        for (final year in _filterOptions['year'] ?? <String>[]) year: year,
+      },
+      (value) {
+        _reportYear = value;
+        reload();
+      },
+    ),
+    _filter('Academic semester', _semester, _semesters, (value) {
+      _semester = value;
+      reload();
+    }),
+    _filter(
+      'Sort by',
+      _sort,
+      {
+        'recent': 'Most recent',
+        'oldest': 'Oldest',
+        'title': 'Title (A to Z)',
+        'report_soonest': 'Report date (oldest first)',
+        'report_latest': 'Report date (newest first)',
+        if (_api.supportsWebsite) ...{
+          'amount_high': 'Amount (high to low)',
+          'amount_low': 'Amount (low to high)',
+        },
+      },
+      (value) {
+        _sort = value.isEmpty ? 'recent' : value;
+        reload();
+      },
+    ),
+  ];
+
+  static const _semesters = {
+    '': 'All semesters',
+    '1': '1st Semester',
+    '2': '2nd Semester',
+  };
+
+  Widget _categoryFilter() => _filter(
+    'Category',
+    _category,
+    {
+      '': 'All categories',
+      for (final category in _filterOptions['category'] ?? <String>[])
+        category: category,
+    },
+    (value) {
+      _category = value;
+      reload();
+    },
+  );
 
   List<Widget> _documentFilters() => [
-    _filter(
-      'Sort By Semester',
-      _semester,
-      const {'': 'All Semesters', '1': '1st Semester', '2': '2nd Semester'},
-      (value) {
-        _semester = value;
-        reload();
-      },
-    ),
-    _filter(
-      'Categories',
-      _category,
-      {
-        '': 'All categories',
-        for (final category in _documentOptions['category'] ?? <String>[])
-          category: category,
-      },
-      (value) {
-        _category = value;
-        reload();
-      },
-    ),
-    if (_documentOptions.containsKey('academic_year'))
+    _filter('Sort By Semester', _semester, _semesters, (value) {
+      _semester = value;
+      reload();
+    }),
+    _categoryFilter(),
+    if (_filterOptions.containsKey('academic_year'))
       _filter(
         'Academic year',
         _academicYear,
         {
           '': 'All academic years',
           'unassigned': 'Not assigned',
-          for (final year in _documentOptions['academic_year'] ?? <String>[])
+          for (final year in _filterOptions['academic_year'] ?? <String>[])
             year: year,
         },
         (value) {
@@ -670,13 +784,17 @@ class _CmsPageState extends State<CmsPage> {
     padding: const EdgeInsets.only(bottom: 10),
     child: DropdownButtonFormField<String>(
       key: ValueKey('$label-$selected'),
-      initialValue: options.containsKey(selected) ? selected : '',
+      initialValue: options.containsKey(selected)
+          ? selected
+          : options.keys.first,
       isExpanded: true,
       decoration: InputDecoration(labelText: label, fillColor: Colors.white),
       items: options.entries
           .map(
-            (entry) =>
-                DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+            (entry) => DropdownMenuItem(
+              value: entry.key,
+              child: Text(entry.value, overflow: TextOverflow.ellipsis),
+            ),
           )
           .toList(),
       onChanged: (value) {
@@ -690,7 +808,7 @@ class _CmsPageState extends State<CmsPage> {
     if (data == null || data.items.isEmpty) {
       return [
         _Empty(
-          _appliedQuery.isNotEmpty || _documentQuery.isNotEmpty
+          _appliedQuery.isNotEmpty || _feedFilters.isNotEmpty
               ? 'No matches. Try another keyword or clear your search and filters.'
               : 'No posts have been published yet.',
         ),
@@ -704,7 +822,14 @@ class _CmsPageState extends State<CmsPage> {
       const SizedBox(height: 12),
       if (widget.kind == 'liquidations')
         _TransactionTable(posts: data.items)
-      else
+      else if (widget.kind == 'discover') ...[
+        if (_sort == 'recent')
+          const Text(
+            'Latest story',
+            style: TextStyle(color: muted, fontWeight: FontWeight.w600),
+          ),
+        for (final post in data.items) _NewsCard(post: post),
+      ] else
         for (final post in data.items)
           if (widget.kind == 'documents')
             _DocumentTile(post: post)

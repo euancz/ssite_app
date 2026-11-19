@@ -38,8 +38,9 @@ dependencies:
   http: ^1.4.0
   web: ^1.1.1
   app_links: ^7.2.2
+  crypto: ^3.0.7
+  flutter_secure_storage: ^11.2.0
   url_launcher: ^6.3.3
-  webview_flutter: ^4.14.1
   flutter_svg: ^2.3.2
   pdfrx: ^2.4.8
   flutter_html: ^3.0.0
@@ -76,6 +77,7 @@ flutter:
     - assets/images/SSITE4k3k.png
     - assets/images/Wolf.png
     - assets/images/rawri-26-27-community.jpg
+    - assets/images/rawri-community-cutout.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

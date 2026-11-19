@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_theme.dart';
 import 'app_gate.dart';
+import 'cms_app_gate.dart';
+import 'services/cms_api.dart';
 
 const _supabaseUrl = String.fromEnvironment(
   'SSITE_SUPABASE_URL',
@@ -13,6 +15,10 @@ const _supabaseAnonKey = String.fromEnvironment(
 );
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (cmsConnectionConfigured) {
+    runApp(const SSITEApp());
+    return;
+  }
   if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
     runApp(const _ConfigurationErrorApp());
     return;
@@ -32,7 +38,7 @@ class SSITEApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     title: 'SSITE',
     theme: buildAppTheme(),
-    home: const AppGate(),
+    home: cmsConnectionConfigured ? const CmsAppGate() : const AppGate(),
   );
 }
 

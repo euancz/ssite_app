@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -56,6 +58,7 @@ class _MobileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bannerWidth = MediaQuery.sizeOf(context).width - 32;
     final (eyebrow, title, description) = switch (name) {
       'discover' => (
         'Articles · activities · achievements',
@@ -75,62 +78,69 @@ class _MobileHero extends StatelessWidget {
       _ => (
         'About the organization',
         'Get to know SSITE',
-        'Discover who we are, what we stand for, and the vision that brings our community together.',
+        'Discover who we are, what we stand for, and the vision that brings our community of aspiring IT professionals together.',
       ),
     };
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 220),
+      constraints: BoxConstraints(
+        minHeight: (bannerWidth * .26).clamp(144, 192).toDouble(),
+      ),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xD9FFFFFF)),
+        borderRadius: BorderRadius.all(
+          Radius.elliptical(bannerWidth * .036, 20),
+        ),
         gradient: const LinearGradient(
+          begin: Alignment(-1, -.4),
+          end: Alignment(1, .4),
           colors: [Color(0xFF63E1ED), Color(0xFF80D7E8), Color(0xFF7CE5E5)],
         ),
       ),
       child: CustomPaint(
         painter: const _HeroGrid(),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                eyebrow,
+                eyebrow.toUpperCase(),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontFamily: 'Poppins',
-                  fontSize: 11,
+                  fontSize: 12,
                   height: 1.5,
-                  color: Color(0xFF155571),
+                  color: Color(0xFF174B5C),
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               Semantics(
                 header: true,
                 child: Text(
-                  title,
+                  title.toUpperCase(),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: 28,
-                    height: 1.2,
-                    color: Color(0xFF063847),
+                    fontSize: (bannerWidth * .065).clamp(25.6, 44).toDouble(),
+                    height: 1.12,
+                    color: const Color(0xFF073746),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 description,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
-                  height: 1.6,
-                  color: Color(0xFF155571),
+                  height: 1.5,
+                  color: Color(0xFF174B5C),
                 ),
               ),
             ],
@@ -145,12 +155,29 @@ class _HeroGrid extends CustomPainter {
   const _HeroGrid();
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0x0C155571);
-    for (double x = 0; x < size.width; x += 24) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += 24) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    final depth = size.height * .27;
+    for (final edge in [0.0, size.height]) {
+      final inward = edge == 0 ? 1 : -1;
+      final paint = Paint()
+        ..strokeWidth = 1.5
+        ..shader = ui.Gradient.linear(
+          Offset(0, edge),
+          Offset(0, edge + inward * depth),
+          const [Color(0x3017A6D2), Color(0x0017A6D2)],
+        );
+      final middle = size.width / 2;
+      for (var index = -7; index <= 7; index++) {
+        final offset = index * size.width / 10;
+        canvas.drawLine(
+          Offset(middle + offset, edge),
+          Offset(middle + offset * .42, edge + inward * depth),
+          paint,
+        );
+      }
+      for (final step in [.16, .37, .64, 1.0]) {
+        final y = edge + inward * depth * step;
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+      }
     }
   }
 

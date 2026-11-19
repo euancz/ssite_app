@@ -29,9 +29,9 @@ class CmsNavigation extends StatelessWidget {
       children: [
         for (var index = 0; index < cmsDestinations.length; index++)
           if (compact)
-            Expanded(child: _destination(index, small))
+            Expanded(child: _destination(index, small, cmsDestinations[index]))
           else
-            _destination(index, false),
+            _destination(index, false, cmsDestinations[index]),
       ],
     );
     return Material(
@@ -44,8 +44,11 @@ class CmsNavigation extends StatelessWidget {
     );
   }
 
-  Widget _destination(int index, bool small) {
-    final destination = cmsDestinations[index];
+  Widget _destination(
+    int index,
+    bool small,
+    ({String label, IconData icon}) destination,
+  ) {
     final selected = selectedIndex == index;
     return Semantics(
       selected: selected,
@@ -62,7 +65,7 @@ class CmsNavigation extends StatelessWidget {
               if (compact) ...[
                 Container(
                   width: 52,
-                  height: 30,
+                  height: 28,
                   decoration: BoxDecoration(
                     color: selected
                         ? const Color(0xFFB9E8F7)

@@ -62,7 +62,10 @@ void main() {
         expect(request.url.queryParameters['module'], 'eq.articles');
         expect(request.url.queryParameters['search_text'], 'ilike.%Published%');
         expect(request.url.queryParameters['offset'], '10');
-        expect(request.url.queryParameters['order'], 'title.asc.nullslast,record_id.asc.nullslast');
+        expect(
+          request.url.queryParameters['order'],
+          'title.asc.nullslast,record_id.asc.nullslast',
+        );
         return http.Response(
           jsonEncode([
             {
@@ -113,4 +116,98 @@ void main() {
     );
     await client.dispose();
   });
+
+  test('combined Discover searches and pages all three story modules', () async {
+    final client = await signedInClient(
+      MockClient((request) async {
+        final params = request.url.queryParameters;
+        const headers = {'content-type': 'application/json'};
+        if (request.url.path.endsWith('/rpc/mobile_reader_allowed')) {
+          return http.Response('true', 200, request: request, headers: headers);
+        }
+        expect(request.url.path, '/rest/v1/mobile_publications');
+        expect(params['module'], 'in.("articles","activities","achievements")');
+        expect(params['search_text'], 'ilike.%campus%');
+        expect(params['sort_date'], startsWith('gte.'));
+        expect(params['offset'], '9');
+        expect(params['limit'], '9');
+        return http.Response(
+          '[{"payload":{"id":2,"module":"activities","title":"Campus event"}}]',
+          200,
+          request: request,
+          headers: {...headers, 'content-range': '9-9/10'},
+        );
+      }),
+    );
+    try {
+      final result = await SupabaseFeed(client).get('discover', {
+        'feed': '1',
+        'q': 'campus',
+        'period': 'week',
+        'page': '2',
+      });
+      expect(result['data'][0]['module'], 'activities');
+      expect(result['meta']['last_page'], 2);
+    } finally {
+      await client.dispose();
+    }
+  });
+
+  test(
+    'Transparency facets and filters use the report date and event title',
+    () async {
+      final client = await signedInClient(
+        MockClient((request) async {
+          final params = request.url.queryParameters;
+          const headers = {'content-type': 'application/json'};
+          if (request.url.path.endsWith('/rpc/mobile_reader_allowed')) {
+            return http.Response(
+              'true',
+              200,
+              request: request,
+              headers: headers,
+            );
+          }
+          expect(request.url.path, '/rest/v1/mobile_publications');
+          expect(params['module'], 'eq.liquidations');
+          if (params['select'] == 'title,year:payload->>date') {
+            return http.Response(
+              '[{"title":"Campus event","year":"2026-02-07"},{"title":"Assembly","year":"2025-11-19"}]',
+              200,
+              request: request,
+              headers: headers,
+            );
+          }
+          expect(params['title'], 'eq.Campus event');
+          expect(params['semester'], 'eq.2');
+          expect(request.url.queryParametersAll['payload->>date'], [
+            'gte.2026-01-01',
+            'lt.2027-01-01',
+          ]);
+          expect(params['order'], startsWith('payload->>date.desc'));
+          return http.Response(
+            '[{"payload":{"id":1,"title":"Campus event","date":"2026-02-07"}}]',
+            200,
+            request: request,
+            headers: {...headers, 'content-range': '0-0/1'},
+          );
+        }),
+      );
+      try {
+        final result = await SupabaseFeed(client).get('liquidations', {
+          'event': 'Campus event',
+          'year': '2026',
+          'semester': '2',
+          'sort': 'report_latest',
+        });
+        expect(result['meta']['filters']['year'], ['2026', '2025']);
+        expect(result['meta']['filters']['event'], [
+          'Assembly',
+          'Campus event',
+        ]);
+      } finally {
+        await client.dispose();
+      }
+    },
+  );
 }
