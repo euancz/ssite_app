@@ -16,31 +16,21 @@ void main() {
         client: MockClient((req) async {
           expect(req.url.host, 'app.example');
           expect(req.headers['Authorization'], 'Bearer test');
-          final end = req.url.path;
-          final data = req.method == 'POST'
-              ? () {
-                  writes.add(jsonDecode(req.body));
-                  return {'back': 'workspace'};
-                }()
-              : end.endsWith('/workspace')
-              ? {
-                  'title': 'Workspace',
-                  'items': [
-                    {'title': 'Manage sponsors', 'path': 'sponsors'},
-                  ],
-                }
-              : {
-                  'title': 'Sponsors',
-                  'items': [
-                    {
-                      'title': 'Save',
-                      'submit': 'sponsors/new',
-                      'fields': [
-                        {'key': 'name', 'value': '', 'type': 'text'},
-                      ],
-                    },
-                  ],
-                };
+          final rpc = jsonDecode(req.body);
+          if (req.url.path.endsWith('ssite_app_write')) {
+            writes.add(Map.from(rpc['body']));
+            return http.Response(jsonEncode({'back': 'workspace'}), 200);
+          }
+          final data = switch (rpc['route']) {
+            'tools/workspace' => {
+              'role': 'officer',
+              'president': true,
+              'modules': <String>[],
+              'stats': [],
+            },
+            'tools/sponsors' => {'rows': []},
+            _ => {'record': {}},
+          };
           return http.Response(jsonEncode(data), 200);
         }),
       )..accessToken = 'test';
@@ -54,12 +44,15 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Manage sponsors'));
+      await tester.tap(find.text('Sponsors'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField), 'Partner');
+      await tester.tap(find.text('Add entry'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, 'Partner');
+      await tester.ensureVisible(find.text('Save'));
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect(writes.single, {'name': 'Partner'});
+      expect(writes.single['name'], 'Partner');
       expect(find.text('Workspace'), findsOneWidget);
     },
   );

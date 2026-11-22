@@ -13,7 +13,12 @@ void main() {
       final requests = <Uri>[];
       final api = CmsApi(
         client: MockClient((request) async {
-          requests.add(request.url);
+          final rpc = jsonDecode(request.body);
+          final uri = Uri(
+            path: '/${rpc['route']}',
+            queryParameters: Map<String, String>.from(rpc['params']),
+          );
+          requests.add(uri);
           return http.Response(
             jsonEncode({
               'data': [
@@ -24,9 +29,7 @@ void main() {
                 },
               ],
               'meta': {
-                'current_page': int.parse(
-                  request.url.queryParameters['page'] ?? '1',
-                ),
+                'current_page': int.parse(uri.queryParameters['page'] ?? '1'),
                 'last_page': 2,
                 'total': 2,
               },

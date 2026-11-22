@@ -179,7 +179,7 @@ class CmsPostCard extends StatelessWidget {
           ],
           const SizedBox(height: 8),
           const Divider(color: line),
-          if (full && CmsApi.instance.accessToken != null)
+          if (full && CmsApi.instance.bearer != null)
             _PostEngagement(post: post)
           else if (post.viewCount != null || post.likeCount != null) ...[
             Wrap(
@@ -209,37 +209,39 @@ class CmsPostCard extends StatelessWidget {
                   onPressed: () => _openPost(context, post),
                   child: const Text('Read full post'),
                 ),
-              if (post.url != null)
-                Builder(
-                  builder: (shareContext) => TextButton.icon(
-                    onPressed: () async {
-                      final box = shareContext.findRenderObject() as RenderBox?;
-                      try {
-                        await SharePlus.instance.share(
-                          ShareParams(
-                            text: '${post.title}\n${post.url}',
-                            title: post.title,
-                            sharePositionOrigin: box == null
-                                ? null
-                                : box.localToGlobal(Offset.zero) & box.size,
+              Builder(
+                builder: (shareContext) => TextButton.icon(
+                  onPressed: () async {
+                    final box = shareContext.findRenderObject() as RenderBox?;
+                    try {
+                      await SharePlus.instance.share(
+                        ShareParams(
+                          text: [
+                            post.title,
+                            if (post.url != null) post.url!,
+                          ].join('\n'),
+                          title: post.title,
+                          sharePositionOrigin: box == null
+                              ? null
+                              : box.localToGlobal(Offset.zero) & box.size,
+                        ),
+                      );
+                    } catch (_) {
+                      if (shareContext.mounted) {
+                        ScaffoldMessenger.of(shareContext).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Sharing is unavailable on this device.',
+                            ),
                           ),
                         );
-                      } catch (_) {
-                        if (shareContext.mounted) {
-                          ScaffoldMessenger.of(shareContext).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Sharing is unavailable. Use Copy link instead.',
-                              ),
-                            ),
-                          );
-                        }
                       }
-                    },
-                    icon: const Icon(Icons.share_outlined, size: 18),
-                    label: const Text('Share'),
-                  ),
+                    }
+                  },
+                  icon: const Icon(Icons.share_outlined, size: 18),
+                  label: const Text('Share'),
                 ),
+              ),
               if (post.url != null)
                 TextButton.icon(
                   onPressed: () async {
