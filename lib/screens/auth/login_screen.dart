@@ -232,24 +232,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(0, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                          onPressed: () => jump(mobile),
-                          icon: const Icon(
-                            Icons.phone_android_outlined,
-                            size: 18,
-                          ),
-                          label: const Text('Mobile app'),
-                        ),
-                      ),
                       const SizedBox(height: 14),
                       const Text(
                         'Use your MCC Microsoft account to get started.',

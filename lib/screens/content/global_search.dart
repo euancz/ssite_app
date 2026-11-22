@@ -140,22 +140,22 @@ class _GlobalSearchState extends State<_GlobalSearch> {
                 onRetry: () => _search(_query),
               ),
             if (!_failed && _posts.isNotEmpty) ...[
-              Wrap(
-                spacing: 6,
-                children: [
-                  ChoiceChip(
-                    label: const Text('All'),
-                    selected: _section == null,
-                    onSelected: (_) => setState(() => _section = null),
-                  ),
-                  for (final entry in _searchSections.entries)
-                    ChoiceChip(
-                      label: Text(entry.value),
-                      selected: _section == entry.key,
-                      onSelected: (_) => setState(() => _section = entry.key),
-                    ),
+              DropdownButtonFormField<String>(
+                key: ValueKey(_section),
+                isExpanded: true,
+                initialValue: _section ?? '',
+                decoration: const InputDecoration(labelText: 'Result type'),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('All results')),
+                  for (final e in _searchSections.entries)
+                    DropdownMenuItem(value: e.key, child: Text(e.value)),
                 ],
+                onChanged: (value) => setState(
+                  () =>
+                      _section = value == null || value.isEmpty ? null : value,
+                ),
               ),
+              const SizedBox(height: 16),
               if (!sections.any(
                 (key) => key == 'officers'
                     ? _officers.isNotEmpty

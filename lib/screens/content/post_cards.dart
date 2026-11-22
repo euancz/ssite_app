@@ -13,9 +13,7 @@ class _NewsCard extends StatelessWidget {
     final photo = SizedBox(
       height: 200,
       width: double.infinity,
-      child: post.imageUrl == null
-          ? Image.asset('assets/images/Wolf.png', fit: BoxFit.cover)
-          : _PostImage(post: post),
+      child: _PostImage(post: post),
     );
     final date = formatCmsDate(post.date ?? post.createdAt);
     return Card(
@@ -24,7 +22,7 @@ class _NewsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (imageFirst) photo,
+          if (imageFirst && post.imageUrl != null) photo,
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -50,7 +48,10 @@ class _NewsCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
                 Text(
-                  ['By ${post.author}', if (date.isNotEmpty) date].join(' \u00b7 '),
+                  [
+                    'By ${post.author}',
+                    if (date.isNotEmpty) date,
+                  ].join(' \u00b7 '),
                   style: const TextStyle(color: muted, fontSize: 12),
                 ),
                 TextButton.icon(
@@ -63,7 +64,7 @@ class _NewsCard extends StatelessWidget {
               ],
             ),
           ),
-          if (!imageFirst) photo,
+          if (!imageFirst && post.imageUrl != null) photo,
         ],
       ),
     );

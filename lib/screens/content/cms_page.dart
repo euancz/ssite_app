@@ -274,7 +274,7 @@ class _CmsPageState extends State<CmsPage> {
                     }
                   },
                 ),
-                _intro(),
+                if (compact) const SizedBox(height: 24) else _intro(),
                 SizedBox(key: _newsAnchor),
               ],
             )
@@ -319,7 +319,11 @@ class _CmsPageState extends State<CmsPage> {
             ),
           ),
           const SizedBox(height: 32),
-          const CmsFooter(),
+          const ExpansionTile(
+            title: Text('Contact SSITE'),
+            leading: Icon(Icons.contact_mail_outlined),
+            children: [CmsFooter()],
+          ),
         ],
       ),
     );
@@ -462,42 +466,43 @@ class _CmsPageState extends State<CmsPage> {
         ),
     ],
     const SizedBox(height: 24),
-    const _Heading('Terms & Privacy'),
     const Card(
       child: ExpansionTile(
-        initiallyExpanded: false,
-        title: Text('Acceptable use'),
+        title: Text('Terms & privacy'),
         children: [
           Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Use SSITE and its materials for their intended school and organization purposes. Respect authorship and document restrictions. Publishing and administrative tools are limited to assigned roles.',
-            ),
-          ),
-        ],
-      ),
-    ),
-    const Card(
-      child: ExpansionTile(
-        title: Text('Terms of service'),
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Keep your account secure and sign out on shared devices. Report incorrect content or account concerns to ssite@gmail.com.',
-            ),
-          ),
-        ],
-      ),
-    ),
-    const Card(
-      child: ExpansionTile(
-        title: Text('Privacy policy'),
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'SSITE uses your name, school email, and Microsoft account identifier to identify your account. Microsoft handles your Microsoft password. You can manage your photo and account details through profile settings.',
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Acceptable use',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Use SSITE and its materials for their intended school and organization purposes. Respect authorship and document restrictions. Publishing and administrative tools are limited to assigned roles.',
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Terms of service',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Keep your account secure and sign out on shared devices. Report incorrect content or account concerns to ssite@gmail.com.',
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Privacy policy',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'SSITE uses your name, school email, and Microsoft account identifier to identify your account. Microsoft handles your Microsoft password. You can manage your photo and account details through profile settings.',
+                ),
+                SizedBox(height: 12),
+              ],
             ),
           ),
         ],

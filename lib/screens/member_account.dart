@@ -92,7 +92,7 @@ class _MemberAccount extends StatelessWidget {
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
-                  child: _MemberAvatar(profile: member, size: 76),
+                  child: _MemberAvatar(profile: member, size: 52),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -114,19 +114,11 @@ class _MemberAccount extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (showSite) ...[
-          for (final (action, title, icon) in [
-            (_AccountAction.profile, 'Edit profile', Icons.person_outline),
-            (
-              _AccountAction.notifications,
-              'Notifications',
-              Icons.notifications_outlined,
-            ),
-          ])
-            ListTile(
-              leading: Icon(icon),
-              title: Text(title),
-              onTap: () => Navigator.pop(context, action),
-            ),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('Edit profile'),
+            onTap: () => Navigator.pop(context, _AccountAction.profile),
+          ),
           ValueListenableBuilder<MemberProfile?>(
             valueListenable: profile,
             builder: (context, user, _) => user?.canAccessWorkspace == true

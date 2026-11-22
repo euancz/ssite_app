@@ -10,32 +10,6 @@ class _DocumentTile extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
-          onTap: () => _openPost(context, post),
-          child: ColoredBox(
-            color: const Color(0xffeaf7fb),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 216),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/ssite_logo_cropped.png',
-                    width: 60,
-                    height: 60,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'SSITE Official Document',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('Open document for details'),
-                ],
-              ),
-            ),
-          ),
-        ),
         Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -48,16 +22,27 @@ class _DocumentTile extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
-              Text(post.title, style: Theme.of(context).textTheme.titleLarge),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.description_outlined,
+                    color: Color(0xff155571),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      post.title,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               if (post.academicYear?.isNotEmpty == true)
                 Text('Academic year: ${post.academicYear}'),
               if (post.semester?.isNotEmpty == true)
                 Text('Semester ${post.semester}'),
-              const Text(
-                'Student Society in Information Technology Education',
-                style: TextStyle(color: muted),
-              ),
               if (post.createdAt != null) Text(formatCmsDate(post.createdAt)),
               Wrap(
                 spacing: 8,

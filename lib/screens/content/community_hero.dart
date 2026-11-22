@@ -44,9 +44,9 @@ class _CommunityHero extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               narrow ? 16 : 24,
-              narrow ? 40 : 52,
+              width < 768 ? 24 : 52,
               narrow ? 16 : 24,
-              narrow ? 32 : 40,
+              width < 768 ? 24 : 40,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -122,7 +122,9 @@ class _CommunityHero extends StatelessWidget {
                       child: Row(
                         children: [
                           Image.asset(
-                            'assets/images/ssite_logo_cropped.png',
+                            width < 768
+                                ? 'assets/images/rawri-community-cutout.png'
+                                : 'assets/images/ssite_logo_cropped.png',
                             width: (width * .18).clamp(56, 80).toDouble(),
                           ),
                           const SizedBox(width: 12),

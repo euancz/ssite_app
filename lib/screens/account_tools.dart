@@ -5,6 +5,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:pdfrx/pdfrx.dart';
 import '../services/cms_api.dart';
+import '../app_theme.dart';
 
 typedef _Data = Map<String, dynamic>;
 
@@ -75,11 +76,12 @@ class _AccountToolsState extends State<AccountTools> {
   }
 
   Future<void> submit(String destination, _Data values) async {
+    final submittedPage = page;
     final result = await widget.api.sendAction(
       destination == 'profile/complete' ? destination : 'tools/$destination',
       values,
     );
-    if (!mounted) return;
+    if (!mounted || page != submittedPage) return;
     if (path == 'onboarding') {
       widget.onCompleted?.call();
       return;
@@ -104,6 +106,198 @@ class _AccountToolsState extends State<AccountTools> {
                 ),
         ),
       ),
+    );
+  }
+
+  Future<void> editFilters(List<_Data> controls) async {
+    final draft = {
+      for (final f in controls)
+        f['key'] as String: (filters[f['key']] ?? f['value'] ?? '').toString(),
+    };
+    final applied = await showModalBottomSheet<bool>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Filters', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            for (final f in controls)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: draft[f['key']],
+                  decoration: InputDecoration(labelText: _fieldLabel(f)),
+                  items: [
+                    for (final choice in (f['choices'] as List).cast<String>())
+                      DropdownMenuItem(
+                        value: choice,
+                        child: Text(choice.isEmpty ? 'All' : choice),
+                      ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) draft[f['key']] = v;
+                  },
+                ),
+              ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Apply filters'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted && applied == true) {
+      setState(() {
+        filters.addAll(draft);
+        page = load();
+      });
+    }
+  }
+
+  final pendingActions = <String>{};
+  Future<void> notificationAction(_Data action) async {
+    final route = action['submit'] as String;
+    if (!pendingActions.add(route)) return;
+    try {
+      if (route.endsWith('/delete') &&
+          !await _confirmDelete(context, action['title'])) {
+        return;
+      }
+      if (mounted) await submit(route, {});
+    } on CmsUnauthorized {
+      if (mounted) widget.onUnauthorized();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      pendingActions.remove(route);
+    }
+  }
+
+  Widget toolRow(_Data row) {
+    if (row['submit'] != null) {
+      return _ActionForm(
+        key: ValueKey('$path/${row['submit']}/${page.hashCode}'),
+        action: row,
+        submit: submit,
+        onUnauthorized: widget.onUnauthorized,
+      );
+    }
+    final String title = row['title']?.toString() ?? '';
+    if (row['rows'] case final List children) {
+      final rows = children.cast<_Data>();
+      final body = Column(
+        children: [
+          for (final (index, entry) in rows.indexed) ...[
+            if (index > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+            toolRow(entry),
+          ],
+        ],
+      );
+      if (row['collapsed'] == true) {
+        return ExpansionTile(
+          title: Text(title),
+          maintainState: true,
+          children: [body],
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          ),
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: body,
+          ),
+        ],
+      );
+    }
+    final String? target = row['path'];
+    if (target != null && (target.endsWith('/new') || target == 'reviews')) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: FilledButton.icon(
+          onPressed: () => go(target),
+          icon: Icon(
+            target == 'reviews' ? Icons.fact_check_outlined : Icons.add,
+          ),
+          label: Text(title),
+        ),
+      );
+    }
+    final detail = row['detail']?.toString() ?? '';
+    if (target == null && row['actions'] == null && detail.length > 200) {
+      return ExpansionTile(
+        title: Text(title),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [SelectableText(detail)],
+      );
+    }
+    final icon = switch (target) {
+      'content/articles' => Icons.article_outlined,
+      'content/activities' => Icons.event_outlined,
+      'content/achievements' => Icons.emoji_events_outlined,
+      'content/documents' => Icons.folder_outlined,
+      'content/liquidations' => Icons.receipt_long_outlined,
+      'history' => Icons.history,
+      'roster' => Icons.groups_outlined,
+      'sponsors' => Icons.handshake_outlined,
+      'users' => Icons.manage_accounts_outlined,
+      _ => null,
+    };
+    final actions = (row['actions'] as List?)?.cast<_Data>();
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      leading: row['image'] != null
+          ? CircleAvatar(
+              backgroundImage: NetworkImage(
+                row['image'],
+                headers: widget.api.headersForUrl(row['image']),
+              ),
+            )
+          : icon == null
+          ? null
+          : Icon(icon, color: const Color(0xff155571)),
+      title: Text(title),
+      subtitle: detail.isEmpty
+          ? null
+          : Text(
+              detail,
+              maxLines: target == null ? null : 2,
+              overflow: target == null ? null : TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: muted),
+            ),
+      trailing: actions != null
+          ? PopupMenuButton<_Data>(
+              tooltip: 'Notification actions',
+              onSelected: notificationAction,
+              itemBuilder: (_) => [
+                for (final action in actions)
+                  PopupMenuItem(value: action, child: Text(action['title'])),
+              ],
+            )
+          : target != null || row['file'] != null
+          ? const Icon(Icons.chevron_right, size: 20)
+          : null,
+      onTap: row['file'] != null
+          ? () => attachment(row)
+          : target == null
+          ? null
+          : () => go(target),
     );
   }
 
@@ -152,91 +346,66 @@ class _AccountToolsState extends State<AccountTools> {
                   ),
                 )
               : SafeArea(
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      if (path == 'users' || data?['filters'] != null)
-                        TextFormField(
-                          initialValue: filters['q'] ?? '',
-                          decoration: const InputDecoration(
-                            labelText: 'Search',
-                          ),
-                          onFieldSubmitted: (v) => setState(() {
-                            filters['q'] = v.trim();
-                            page = load();
-                          }),
-                        ),
-                      for (final f
-                          in (data?['filters'] as List? ?? []).cast<_Data>())
-                        DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          initialValue: filters[f['key']] ?? f['value'],
-                          decoration: InputDecoration(labelText: f['key']),
-                          items: [
-                            for (final v
-                                in (f['choices'] as List).cast<String>())
-                              DropdownMenuItem(
-                                value: v,
-                                child: Text(
-                                  v.isEmpty ? 'All' : v,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) {
-                              setState(() {
-                                filters[f['key']] = v;
-                                page = load();
-                              });
-                            }
-                          },
-                        ),
-                      const SizedBox(height: 12),
-                      if ((data!['items'] as List).isEmpty)
-                        const Text('No records to display.'),
-                      for (final row in (data['items'] as List).cast<_Data>())
-                        if (row['submit'] != null)
-                          _ActionForm(
-                            key: ValueKey(
-                              '$path/${row['submit']}/${page.hashCode}',
-                            ),
-                            action: row,
-                            submit: submit,
-                            onUnauthorized: widget.onUnauthorized,
-                          )
-                        else
-                          Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            clipBehavior: Clip.antiAlias,
-                            child: ListTile(
-                              title: Text(row['title'].toString()),
-                              subtitle: row['detail'] == null
-                                  ? null
-                                  : Text(row['detail'].toString()),
-                              leading: row['image'] == null
-                                  ? null
-                                  : CircleAvatar(
-                                      backgroundImage: NetworkImage(
-                                        row['image'],
-                                        headers: widget.api.headersForUrl(
-                                          row['image'],
-                                        ),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: ListView(
+                        key: PageStorageKey(path),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                        children: [
+                          if (path == 'users' || data?['filters'] != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      initialValue: filters['q'] ?? '',
+                                      textInputAction: TextInputAction.search,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Search',
+                                        prefixIcon: Icon(Icons.search),
                                       ),
+                                      onFieldSubmitted: (v) => setState(() {
+                                        filters['q'] = v.trim();
+                                        page = load();
+                                      }),
                                     ),
-                              trailing:
-                                  row['path'] == null && row['file'] == null
-                                  ? null
-                                  : const Icon(Icons.chevron_right),
-                              onTap: row['file'] != null
-                                  ? () => attachment(row)
-                                  : row['path'] == null
-                                  ? null
-                                  : () => go(row['path']),
+                                  ),
+                                  if (data?['filters']
+                                      case final List controls) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton.outlined(
+                                      tooltip: 'Filters',
+                                      isSelected: filters.entries.any(
+                                        (e) =>
+                                            e.key != 'q' && e.value.isNotEmpty,
+                                      ),
+                                      onPressed: () =>
+                                          editFilters(controls.cast<_Data>()),
+                                      icon: const Icon(Icons.tune),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                          ),
-                    ],
+                          if ((data!['items'] as List).isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Text(
+                                'No records to display.',
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          for (final row
+                              in (data['items'] as List).cast<_Data>())
+                            toolRow(row),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
         );
@@ -244,6 +413,32 @@ class _AccountToolsState extends State<AccountTools> {
     ),
   );
 }
+
+String _fieldLabel(_Data f) {
+  final label = (f['label'] ?? (f['key'] as String).replaceAll('_', ' '))
+      .toString();
+  return label.isEmpty ? label : label[0].toUpperCase() + label.substring(1);
+}
+
+Future<bool> _confirmDelete(BuildContext context, String title) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: const Text('Permanently delete this record?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    ) ??
+    false;
 
 class _ActionForm extends StatefulWidget {
   const _ActionForm({
@@ -270,25 +465,7 @@ class _ActionFormState extends State<_ActionForm> {
   Future<void> send({bool draft = false}) async {
     if (busy) return;
     if (widget.action['title'].toString().toLowerCase().startsWith('delete')) {
-      if (await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text(widget.action['title']),
-                  content: const Text('Permanently delete this record?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Delete'),
-                    ),
-                  ],
-                ),
-              ) !=
-              true ||
-          !mounted) {
+      if (!await _confirmDelete(context, widget.action['title']) || !mounted) {
         return;
       }
     }
@@ -333,9 +510,7 @@ class _ActionFormState extends State<_ActionForm> {
   }
 
   Widget control(_Data f) {
-    final key = f['key'] as String,
-        type = f['type'],
-        label = (f['label'] ?? key.replaceAll('_', ' ')).toString();
+    final key = f['key'] as String, type = f['type'], label = _fieldLabel(f);
     if (type == 'hidden') return const SizedBox.shrink();
     if (type == 'check') {
       return CheckboxListTile(
@@ -415,53 +590,98 @@ class _ActionFormState extends State<_ActionForm> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final f in (widget.action['fields'] as List? ?? []).cast<_Data>())
-          Padding(padding: const EdgeInsets.only(bottom: 8), child: control(f)),
-        if (error != null)
-          Text(
-            error!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        if (widget.action['preview'] == true)
-          TextButton(
-            onPressed: () => showDialog<void>(
-              context: context,
-              builder: (ctx) {
-                final body = (fields['content'] ?? fields['description'] ?? '')
-                    .toString();
-                return AlertDialog(
-                  title: Text(fields['title'] ?? 'Preview'),
-                  content: SingleChildScrollView(
-                    child: fields['content_format'] == 'markdown'
-                        ? Html(data: md.markdownToHtml(body))
-                        : Text(body),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Close'),
-                    ),
-                  ],
-                );
-              },
+  Widget build(BuildContext context) {
+    final visible = (widget.action['fields'] as List? ?? [])
+        .cast<_Data>()
+        .where((f) => f['type'] != 'hidden');
+    const secondaryKeys = {
+      'content_format',
+      'sort_order',
+      'is_active',
+      'remove_logo',
+    };
+    final secondary = visible
+        .where((f) => secondaryKeys.contains(f['key']))
+        .toList();
+    Widget input(_Data f) =>
+        Padding(padding: const EdgeInsets.only(bottom: 12), child: control(f));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final field in visible.where(
+            (f) => !secondaryKeys.contains(f['key']),
+          ))
+            input(field),
+          if (secondary.isNotEmpty)
+            ExpansionTile(
+              title: const Text('More options'),
+              maintainState: true,
+              tilePadding: EdgeInsets.zero,
+              children: [for (final field in secondary) input(field)],
             ),
-            child: const Text('Preview'),
-          ),
-        if (widget.action['draft'] == true)
-          OutlinedButton(
-            onPressed: busy ? null : () => send(draft: true),
-            child: const Text('Save draft'),
-          ),
-        FilledButton(
-          onPressed: busy ? null : () => send(),
-          child: Text(widget.action['title']),
-        ),
-      ],
-    ),
-  );
+          if (error != null)
+            Text(
+              error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          if (widget.action['preview'] == true ||
+              widget.action['draft'] == true)
+            Wrap(
+              spacing: 12,
+              children: [
+                if (widget.action['preview'] == true)
+                  TextButton(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (ctx) {
+                        final body =
+                            (fields['content'] ?? fields['description'] ?? '')
+                                .toString();
+                        return AlertDialog(
+                          title: Text(fields['title'] ?? 'Preview'),
+                          content: SingleChildScrollView(
+                            child: fields['content_format'] == 'markdown'
+                                ? Html(data: md.markdownToHtml(body))
+                                : Text(body),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Close'),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    child: const Text('Preview'),
+                  ),
+                if (widget.action['draft'] == true)
+                  OutlinedButton(
+                    onPressed: busy ? null : () => send(draft: true),
+                    child: const Text('Save draft'),
+                  ),
+              ],
+            ),
+          if (widget.action['title'].toString().toLowerCase().startsWith(
+            'delete',
+          ))
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: busy ? null : () => send(),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: Text(widget.action['title']),
+            )
+          else
+            FilledButton(
+              onPressed: busy ? null : () => send(),
+              child: Text(widget.action['title']),
+            ),
+        ],
+      ),
+    );
+  }
 }
