@@ -51,7 +51,12 @@ void main() {
       await tester.pumpAndSettle();
       final submitted = requests.last;
       await tester.enterText(find.byType(TextField), 'unsubmitted');
-      await tester.ensureVisible(find.text('Load more'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Load more').hitTestable(),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Load more'));
       await tester.pumpAndSettle();

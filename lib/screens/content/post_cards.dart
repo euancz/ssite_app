@@ -1,43 +1,73 @@
 part of '../main_screen.dart';
 
 class _NewsCard extends StatelessWidget {
-  const _NewsCard({required this.post});
+  const _NewsCard({
+    required this.post,
+    this.imageFirst = false,
+    this.excerpt = false,
+  });
   final CmsPost post;
+  final bool imageFirst, excerpt;
   @override
-  Widget build(BuildContext context) => _Surface(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          post.moduleLabel.toUpperCase(),
-          style: const TextStyle(
-            color: muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) {
+    final photo = SizedBox(
+      height: 200,
+      width: double.infinity,
+      child: post.imageUrl == null
+          ? Image.asset('assets/images/Wolf.png', fit: BoxFit.cover)
+          : _PostImage(post: post),
+    );
+    final date = formatCmsDate(post.date ?? post.createdAt);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (imageFirst) photo,
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  post.moduleLabel.toUpperCase(),
+                  style: const TextStyle(
+                    color: muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(post.title, style: Theme.of(context).textTheme.titleLarge),
+                if (excerpt && post.description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    post.description,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  ['By ${post.author}', if (date.isNotEmpty) date].join(' \u00b7 '),
+                  style: const TextStyle(color: muted, fontSize: 12),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  onPressed: () => _openPost(context, post),
+                  iconAlignment: IconAlignment.end,
+                  icon: const Icon(Icons.chevron_right, size: 18),
+                  label: const Text('Read more'),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          post.title,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            height: 1.3,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'By ${post.author} · ${formatCmsDate(post.date)}',
-          style: const TextStyle(color: muted, fontSize: 11),
-        ),
-        TextButton(
-          onPressed: () => _openPost(context, post),
-          child: const Text('Read More →'),
-        ),
-        if (post.imageUrl != null) _PostImage(post: post),
-      ],
-    ),
-  );
+          if (!imageFirst) photo,
+        ],
+      ),
+    );
+  }
 }
 
 class CmsPostCard extends StatelessWidget {

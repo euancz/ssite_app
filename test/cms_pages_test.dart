@@ -111,7 +111,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     final search = find.byType(TextField);
-    final listing = find.text('Official documents');
+    final listing = find.text('Filters');
     final listingPosition = tester.getTopLeft(listing);
     await tester.enterText(search, 'cMs p');
     await tester.pump(const Duration(milliseconds: 250));
@@ -248,7 +248,7 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Discover'));
       await tester.pumpAndSettle();
-      expect(find.text('Latest story'), findsOneWidget);
+      expect(find.text('Filters'), findsOneWidget);
       expect(find.text('Newest CMS activity'), findsOneWidget);
       expect(find.text('Older CMS article'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -305,10 +305,16 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Activities'));
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All content').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Activities').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apply filters'));
     await tester.pumpAndSettle();
     expect(find.text('activities CMS post 1'), findsOneWidget);
-    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.ensureVisible(find.text('Load more'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Load more'));
     await tester.pumpAndSettle();

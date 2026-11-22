@@ -92,6 +92,13 @@ class _MobileHero extends StatelessWidget {
         borderRadius: BorderRadius.all(
           Radius.elliptical(bannerWidth * .036, 20),
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x29083747),
+            offset: Offset(0, 6),
+            blurRadius: 22,
+          ),
+        ],
         gradient: const LinearGradient(
           begin: Alignment(-1, -.4),
           end: Alignment(1, .4),

@@ -257,7 +257,7 @@ class _CmsPageState extends State<CmsPage> {
       onRefresh: reload,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 32),
+        padding: EdgeInsets.zero,
         children: [
           if (kind == 'home')
             Column(
@@ -319,12 +319,7 @@ class _CmsPageState extends State<CmsPage> {
             ),
           ),
           const SizedBox(height: 32),
-          const Center(
-            child: Text(
-              'SSITE · Mabalacat City College',
-              style: TextStyle(color: muted, fontSize: 11),
-            ),
-          ),
+          const CmsFooter(),
         ],
       ),
     );
@@ -397,7 +392,7 @@ class _CmsPageState extends State<CmsPage> {
       ...data.activities,
       ...data.achievements,
     ])
-      _NewsCard(post: post),
+      _NewsCard(post: post, imageFirst: post.module != 'articles'),
     if (data.articles.isEmpty &&
         data.activities.isEmpty &&
         data.achievements.isEmpty)
@@ -455,6 +450,7 @@ class _CmsPageState extends State<CmsPage> {
       for (final year in data.history.entries)
         Card(
           child: ExpansionTile(
+            initiallyExpanded: year.key == data.history.keys.first,
             title: Text('SSITE Officers A.Y. ${year.key}'),
             children: [
               Padding(
@@ -510,266 +506,214 @@ class _CmsPageState extends State<CmsPage> {
   ];
 
   List<Widget> _filters() => [
-    if (widget.kind == 'discover') ...[
-      Wrap(
-        spacing: 8,
-        runSpacing: 4,
-        children: [
-          for (final entry in {
-            'all': 'All',
-            'articles': 'Articles',
-            'activities': 'Activities',
-            'achievements': 'Achievements',
-          }.entries)
-            ChoiceChip(
-              label: Text(entry.value),
-              selected: _module == entry.key,
-              selectedColor: const Color(0xFFC7ECF9),
-              onSelected: (_) {
-                if (_module == entry.key) return;
-                _module = entry.key;
-                _category = '';
-                _filterOptions = {};
-                reload();
-              },
-            ),
-        ],
-      ),
-      const SizedBox(height: 14),
-    ],
-    ...[
-      OverlayPortal.overlayChildLayoutBuilder(
-        controller: _suggestionOverlay,
-        overlayChildBuilder: _buildSearchSuggestions,
-        child: TextField(
-          controller: _search,
-          textInputAction: TextInputAction.search,
-          onTap: () {
-            if (!_suggestionOverlay.isShowing) _suggest(_search.text);
+    OverlayPortal.overlayChildLayoutBuilder(
+      controller: _suggestionOverlay,
+      overlayChildBuilder: _buildSearchSuggestions,
+      child: TextField(
+        controller: _search,
+        textInputAction: TextInputAction.search,
+        onTap: () {
+          if (!_suggestionOverlay.isShowing) _suggest(_search.text);
+        },
+        onChanged: _suggest,
+        onSubmitted: (_) => _submitSuggestion(),
+        onTapOutside: (_) => _dismissSuggestions(),
+        decoration: InputDecoration(
+          hintText: switch (widget.kind) {
+            'documents' => 'Search document titles',
+            'liquidations' => 'Search reports...',
+            _ => 'Title or description',
           },
-          onChanged: _suggest,
-          onSubmitted: (_) => _submitSuggestion(),
-          onTapOutside: (_) => _dismissSuggestions(),
-          decoration: InputDecoration(
-            hintText: widget.kind == 'discover' && _module == 'all'
-                ? 'Search stories'
-                : 'Search title',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _search,
-              builder: (context, value, child) => IconButton(
-                tooltip: value.text.isEmpty ? 'Search' : 'Clear search',
-                icon: Icon(
-                  value.text.isEmpty ? Icons.arrow_forward : Icons.close,
-                ),
-                onPressed: () {
-                  _search.clear();
-                  reload();
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(height: 16),
-      if (widget.kind == 'documents' ||
-          widget.kind == 'liquidations' ||
-          widget.kind == 'discover') ...[
-        ExpansionTile(
-          title: Text(
-            _feedFilters.isEmpty
-                ? 'Filters'
-                : 'Filters (${_feedFilters.length} active)',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          leading: const Icon(Icons.tune, size: 20),
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: const EdgeInsets.only(top: 8, bottom: 8),
-          shape: const Border(),
-          collapsedShape: const Border(),
-          maintainState: true,
-          children: switch (widget.kind) {
-            'documents' => _documentFilters(),
-            'liquidations' => _reportFilters(),
-            _ => _storyFilters(),
-          },
-        ),
-        const SizedBox(height: 12),
-      ],
-      Row(
-        children: [
-          Expanded(
-            child: Text(
-              widget.kind == 'documents'
-                  ? 'Official documents'
-                  : widget.kind == 'liquidations'
-                  ? 'Transactions'
-                  : _module == 'all'
-                  ? 'All stories'
-                  : _module[0].toUpperCase() + _module.substring(1),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-          if (widget.kind != 'liquidations')
-            DropdownButton<String>(
-              underline: const SizedBox.shrink(),
-              value: _sort,
-              items: const [
-                DropdownMenuItem(
-                  value: 'recent',
-                  child: Text('Most recent', style: TextStyle(fontSize: 12)),
-                ),
-                DropdownMenuItem(
-                  value: 'oldest',
-                  child: Text('Oldest', style: TextStyle(fontSize: 12)),
-                ),
-                DropdownMenuItem(
-                  value: 'title',
-                  child: Text('Title (A to Z)', style: TextStyle(fontSize: 12)),
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _search,
+            builder: (context, value, child) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (value.text.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Clear search',
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _search.clear();
+                      _submitSuggestion();
+                    },
+                  ),
+                IconButton(
+                  tooltip: 'Search',
+                  icon: const Icon(Icons.search),
+                  onPressed: _submitSuggestion,
                 ),
               ],
-              onChanged: (value) {
-                if (value != null) {
-                  _sort = value;
-                  reload();
-                }
-              },
             ),
-        ],
-      ),
-      const Divider(),
-      const SizedBox(height: 8),
-      if (_appliedQuery.isNotEmpty ||
-          _feedFilters.isNotEmpty ||
-          _sort != 'recent')
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () {
-              _search.clear();
-              _category = _semester = _academicYear = _period = _event =
-                  _reportYear = '';
-              _sort = 'recent';
-              reload();
-            },
-            icon: const Icon(Icons.filter_alt_off_outlined),
-            label: const Text('Clear search and filters'),
           ),
         ),
-    ],
-  ];
-
-  List<Widget> _storyFilters() => [
-    _filter(
-      'Date range',
-      _period,
-      const {
-        '': 'Any time',
-        'week': 'Past week',
-        'month': 'Past month',
-        'year': 'Past year',
-      },
-      (value) {
-        _period = value;
-        reload();
-      },
+      ),
     ),
-    if (_module != 'all' && _filterOptions['category']?.isNotEmpty == true)
-      _categoryFilter(),
-  ];
-
-  List<Widget> _reportFilters() => [
-    _filter(
-      'Event name',
-      _event,
-      {
-        '': 'All events',
-        for (final event in _filterOptions['event'] ?? <String>[]) event: event,
-      },
-      (value) {
-        _event = value;
-        reload();
-      },
+    const SizedBox(height: 16),
+    Align(
+      alignment: Alignment.centerRight,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          minimumSize: const Size(0, 44),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: _openFilters,
+        icon: const Icon(Icons.tune, size: 18),
+        label: Text(_filterCount == 0 ? 'Filters' : 'Filters ($_filterCount)'),
+      ),
     ),
-    _filter(
-      'Report year',
-      _reportYear,
-      {
-        '': 'All report years',
-        for (final year in _filterOptions['year'] ?? <String>[]) year: year,
-      },
-      (value) {
-        _reportYear = value;
-        reload();
-      },
-    ),
-    _filter('Academic semester', _semester, _semesters, (value) {
-      _semester = value;
-      reload();
-    }),
-    _filter(
-      'Sort by',
-      _sort,
-      {
-        'recent': 'Most recent',
-        'oldest': 'Oldest',
-        'title': 'Title (A to Z)',
-        'report_soonest': 'Report date (oldest first)',
-        'report_latest': 'Report date (newest first)',
-        if (_api.supportsWebsite) ...{
-          'amount_high': 'Amount (high to low)',
-          'amount_low': 'Amount (low to high)',
-        },
-      },
-      (value) {
-        _sort = value.isEmpty ? 'recent' : value;
-        reload();
-      },
-    ),
-  ];
-
-  static const _semesters = {
-    '': 'All semesters',
-    '1': '1st Semester',
-    '2': '2nd Semester',
-  };
-
-  Widget _categoryFilter() => _filter(
-    'Category',
-    _category,
-    {
-      '': 'All categories',
-      for (final category in _filterOptions['category'] ?? <String>[])
-        category: category,
-    },
-    (value) {
-      _category = value;
-      reload();
-    },
-  );
-
-  List<Widget> _documentFilters() => [
-    _filter('Sort By Semester', _semester, _semesters, (value) {
-      _semester = value;
-      reload();
-    }),
-    _categoryFilter(),
-    if (_filterOptions.containsKey('academic_year'))
-      _filter(
-        'Academic year',
-        _academicYear,
-        {
-          '': 'All academic years',
-          'unassigned': 'Not assigned',
-          for (final year in _filterOptions['academic_year'] ?? <String>[])
-            year: year,
-        },
-        (value) {
-          _academicYear = value;
-          reload();
-        },
+    const SizedBox(height: 24),
+    if (_appliedQuery.isNotEmpty || _filterCount > 0)
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () {
+            _search.clear();
+            _category = _semester = _academicYear = _period = _event =
+                _reportYear = '';
+            _module = 'all';
+            _sort = 'recent';
+            reload();
+          },
+          icon: const Icon(Icons.filter_alt_off_outlined),
+          label: const Text('Clear search and filters'),
+        ),
       ),
   ];
+
+  int get _filterCount =>
+      _feedFilters.length +
+      (_module == 'all' ? 0 : 1) +
+      (_sort == 'recent' ? 0 : 1);
+
+  Future<void> _openFilters() async {
+    _dismissSuggestions();
+    FocusScope.of(context).unfocus();
+    final draft = {'type': _module, 'sort': _sort, ..._feedFilters};
+    final discover = widget.kind == 'discover';
+    final reports = widget.kind == 'liquidations';
+    Map<String, String> options(String key, String first) => {
+      '': first,
+      for (final v in _filterOptions[key] ?? <String>[]) v: v,
+    };
+    final apply = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, redraw) {
+          Widget field(String label, String key, Map<String, String> values) =>
+              _filter(
+                label,
+                draft[key] ?? '',
+                values,
+                (value) => redraw(() {
+                  if (key == 'type' && draft[key] != value)
+                    draft.remove('category');
+                  draft[key] = value;
+                }),
+              );
+          return AlertDialog(
+            title: const Text('Filter by'),
+            scrollable: true,
+            content: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (discover)
+                    field('Content type', 'type', const {
+                      'all': 'All content',
+                      'articles': 'Articles',
+                      'activities': 'Activities',
+                      'achievements': 'Achievements',
+                    }),
+                  if (reports)
+                    field(
+                      'Event name',
+                      'event',
+                      options('event', 'All events'),
+                    ),
+                  if (discover &&
+                      draft['type'] == _module &&
+                      _module != 'all' &&
+                      options('category', '').length > 1)
+                    field(
+                      'Category',
+                      'category',
+                      options('category', 'All categories'),
+                    ),
+                  if (discover)
+                    field('Date added', 'period', const {
+                      '': 'Any time',
+                      'week': 'Last 7 days',
+                      'month': 'Last 30 days',
+                      'year': 'Last year',
+                    }),
+                  field('Sort by', 'sort', {
+                    'recent': 'Newest added',
+                    'oldest': 'Oldest added',
+                    'title': 'Title (A to Z)',
+                    if (reports) ...{
+                      'report_soonest': 'Report date (oldest first)',
+                      'report_latest': 'Report date (newest first)',
+                      if (_api.supportsWebsite) ...{
+                        'amount_high': 'Amount (high to low)',
+                        'amount_low': 'Amount (low to high)',
+                      },
+                    },
+                  }),
+                  if (reports)
+                    field(
+                      'Report year',
+                      'year',
+                      options('year', 'All report years'),
+                    ),
+                  if (widget.kind == 'documents') ...[
+                    if (_filterOptions.containsKey('academic_year'))
+                      field('Academic year', 'academic_year', {
+                        ...options('academic_year', 'All academic years'),
+                        'unassigned': 'Not assigned',
+                      }),
+                    field(
+                      'Category',
+                      'category',
+                      options('category', 'All categories'),
+                    ),
+                  ],
+                  if (!discover)
+                    field('Semester', 'semester', const {
+                      '': 'All semesters',
+                      '1': '1st Semester',
+                      '2': '2nd Semester',
+                    }),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Apply filters'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted || apply != true) return;
+    _module = draft['type']!;
+    _sort = draft['sort']!;
+    _period = draft['period'] ?? '';
+    _category = draft['category'] ?? '';
+    _semester = draft['semester'] ?? '';
+    _academicYear = draft['academic_year'] ?? '';
+    _event = draft['event'] ?? '';
+    _reportYear = draft['year'] ?? '';
+    await reload();
+  }
 
   Widget _filter(
     String label,
@@ -801,6 +745,13 @@ class _CmsPageState extends State<CmsPage> {
 
   List<Widget> _feedContent() {
     final data = _page;
+    if (data != null && data.items.isEmpty && widget.kind == 'liquidations')
+      return [
+        _TransactionTable(
+          posts: const [],
+          filtered: _filterCount > 0 || _appliedQuery.isNotEmpty,
+        ),
+      ];
     if (data == null || data.items.isEmpty) {
       return [
         _Empty(
@@ -811,20 +762,11 @@ class _CmsPageState extends State<CmsPage> {
       ];
     }
     return [
-      Text(
-        '${data.total} results',
-        style: const TextStyle(color: muted, fontSize: 12),
-      ),
-      const SizedBox(height: 12),
       if (widget.kind == 'liquidations')
         _TransactionTable(posts: data.items)
       else if (widget.kind == 'discover') ...[
-        if (_sort == 'recent')
-          const Text(
-            'Latest story',
-            style: TextStyle(color: muted, fontWeight: FontWeight.w600),
-          ),
-        for (final post in data.items) _NewsCard(post: post),
+        for (final post in data.items)
+          _NewsCard(post: post, imageFirst: true, excerpt: true),
       ] else
         for (final post in data.items)
           if (widget.kind == 'documents')

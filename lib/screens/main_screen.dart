@@ -12,6 +12,7 @@ import 'account_tools.dart';
 import '../services/cms_api.dart';
 import '../services/member_profile.dart';
 import '../widgets/cms_hero.dart';
+import '../widgets/cms_footer.dart';
 import '../widgets/cms_navigation.dart';
 
 part 'content/cms_page.dart';
@@ -99,19 +100,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _keys[_tab].currentState?.reload();
       _loadAccount();
     } else if (action != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => AccountTools(
-            api: _api,
-            path: action.name,
-            onUnauthorized: _endSession,
-          ),
+      await _openTool(action);
+    }
+  }
+
+  Future<void> _openTool(_AccountAction action) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AccountTools(
+          api: _api,
+          path: action.name,
+          onUnauthorized: _endSession,
         ),
-      );
-      if (mounted) {
-        _loadAccount();
-        _keys[_tab].currentState?.reload();
-      }
+      ),
+    );
+    if (mounted) {
+      _loadAccount();
+      _keys[_tab].currentState?.reload();
     }
   }
 
@@ -193,6 +198,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             icon: const Icon(Icons.search_rounded),
             onPressed: _openSearch,
           ),
+          if (_api.supportsWebsite)
+            IconButton(
+              tooltip: 'Notifications',
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () => _openTool(_AccountAction.notifications),
+            ),
           IconButton(
             tooltip: 'Account options',
             onPressed: _openAccount,

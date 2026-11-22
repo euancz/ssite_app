@@ -77,6 +77,9 @@ flutter:
     - assets/images/ssite_logo.png
     - assets/images/ssite_logo_cropped.png
     - assets/images/SSITE4k3k.png
+    - assets/images/ics-badge.png
+    - assets/images/mcc-badge.png
+    - assets/images/ssite-badge.png
     - assets/images/Wolf.png
     - assets/images/rawri-26-27-community.jpg
     - assets/images/rawri-community-cutout.png

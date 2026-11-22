@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app_theme.dart';
+import '../../widgets/cms_footer.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -40,172 +41,390 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  final community = GlobalKey(), mobile = GlobalKey();
+  void jump(GlobalKey section) {
+    final anchor = section.currentContext;
+    if (anchor != null)
+      Scrollable.ensureVisible(
+        anchor,
+        duration: const Duration(milliseconds: 300),
+      );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFEDF7FB),
     body: SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: MediaQuery.sizeOf(context).width <= 380 ? 16 : 24,
-            vertical: 24,
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+      bottom: false,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ColoredBox(
+              color: const Color(0xff8ad5f4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Column(
                   children: [
-                    Image.asset(
-                      'assets/images/ssite_logo_cropped.png',
-                      width: 40,
-                      height: 40,
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'SSITE at Mabalacat City College',
-                        style: TextStyle(
-                          color: navy,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(),
-                const SizedBox(height: 16),
-                Semantics(
-                  header: true,
-                  child: const Text.rich(
-                    TextSpan(
-                      text: 'Campus life.\n',
-                      children: [
-                        TextSpan(
-                          text: 'Closer to you.',
-                          style: TextStyle(color: Color(0xFF155571)),
-                        ),
-                      ],
-                    ),
-                    style: TextStyle(
-                      fontSize: 42,
-                      letterSpacing: -1.8,
-                      height: 1.08,
-                      fontWeight: FontWeight.w700,
-                      color: navy,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'News, activities, and resources for the SSITE community at Mabalacat City College.',
-                  style: TextStyle(color: muted, fontSize: 16, height: 1.6),
-                ),
-                const SizedBox(height: 24),
-                if (widget.errorMessage != null || _launchError != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFEEEE),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _launchError ?? widget.errorMessage!,
-                      style: const TextStyle(
-                        color: Color(0xFF9B1C1C),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 54),
-                  child: OutlinedButton.icon(
-                    onPressed: _openingSignIn ? null : _signInWithMicrosoft,
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: navy,
-                      side: const BorderSide(color: Color(0xFFA4B9C4)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                    icon: _openingSignIn
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: navy,
-                            ),
-                          )
-                        : const _MicrosoftMark(),
-                    label: const Text(
-                      'Sign in with Microsoft',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Use your MCC Microsoft account to get started.',
-                  style: TextStyle(color: muted),
-                ),
-                const SizedBox(height: 28),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: navy),
-                    borderRadius: BorderRadius.circular(4),
-                    boxShadow: const [
-                      BoxShadow(color: navy, offset: Offset(4, 4)),
-                    ],
-                  ),
-                  child: CustomPaint(
-                    painter: _LoginGridPainter(),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 72),
+                      child: Row(
                         children: [
-                          const Text(
-                            'Student Society in Information Technology Education',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
                           Image.asset(
-                            'assets/images/rawri-26-27-community.jpg',
-                            height: 190,
-                            fit: BoxFit.contain,
-                            semanticLabel: 'SSITE wolf mascot in a hoodie',
+                            'assets/images/ssite_logo_cropped.png',
+                            height: 42,
+                            width: 42,
                           ),
-                          const Divider(),
-                          const Text(
-                            'Different minds. One pack.',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                          const SizedBox(width: 9),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'SSITE',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  'Mabalacat City College',
+                                  style: TextStyle(fontSize: 10),
+                                ),
+                              ],
                             ),
+                          ),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            onPressed: _openingSignIn
+                                ? null
+                                : _signInWithMicrosoft,
+                            icon: const _MicrosoftMark(),
+                            label: const Text('Sign in'),
                           ),
                         ],
                       ),
                     ),
+                    const Divider(height: 1),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () => jump(community),
+                          child: const Text('Community'),
+                        ),
+                        TextButton(
+                          onPressed: () => jump(mobile),
+                          child: const Text('Mobile app'),
+                        ),
+                        if (widget.onPolicies != null)
+                          TextButton(
+                            onPressed: widget.onPolicies,
+                            child: const Text('Policies'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 700),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 38, 20, 30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'SSITE at Mabalacat City College',
+                        style: TextStyle(
+                          fontSize: 10,
+                          letterSpacing: 1.3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Semantics(
+                        header: true,
+                        child: const Text.rich(
+                          TextSpan(
+                            text: 'Campus life.\n',
+                            children: [
+                              TextSpan(
+                                text: 'Closer to you.',
+                                style: TextStyle(color: Color(0xFF155571)),
+                              ),
+                            ],
+                          ),
+                          style: TextStyle(
+                            fontSize: 42,
+                            letterSpacing: -1.8,
+                            height: 1.08,
+                            fontWeight: FontWeight.w700,
+                            color: navy,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'News, activities, and resources for the SSITE community at Mabalacat City College.',
+                        style: TextStyle(
+                          color: muted,
+                          fontSize: 14,
+                          height: 1.85,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      if (widget.errorMessage != null ||
+                          _launchError != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFEEEE),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            _launchError ?? widget.errorMessage!,
+                            style: const TextStyle(
+                              color: Color(0xFF9B1C1C),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: OutlinedButton.icon(
+                            onPressed: _openingSignIn
+                                ? null
+                                : _signInWithMicrosoft,
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: navy,
+                              side: const BorderSide(color: Color(0xFFA4B9C4)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            icon: _openingSignIn
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: navy,
+                                    ),
+                                  )
+                                : const _MicrosoftMark(),
+                            label: const Text(
+                              'Sign in with Microsoft',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          onPressed: () => jump(mobile),
+                          icon: const Icon(
+                            Icons.phone_android_outlined,
+                            size: 18,
+                          ),
+                          label: const Text('Mobile app'),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Use your MCC Microsoft account to get started.',
+                        style: TextStyle(color: muted, fontSize: 11),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () => jump(community),
+                          icon: const Icon(Icons.expand_more),
+                          iconAlignment: IconAlignment.end,
+                          label: const Text('Explore SSITE'),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 340),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: navy),
+                              borderRadius: BorderRadius.circular(4),
+                              boxShadow: const [
+                                BoxShadow(color: navy, offset: Offset(4, 4)),
+                              ],
+                            ),
+                            child: CustomPaint(
+                              painter: _LoginGridPainter(),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  22,
+                                  20,
+                                  22,
+                                  14,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Expanded(
+                                          child: Text(
+                                            'STUDENT SOCIETY IN\nINFORMATION TECHNOLOGY EDUCATION',
+                                            style: TextStyle(
+                                              fontSize: 8,
+                                              letterSpacing: .6,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        Image.asset(
+                                          'assets/images/ssite-badge.png',
+                                          width: 32,
+                                          height: 32,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'SSITE',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 82,
+                                        height: 1.05,
+                                        letterSpacing: -4,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Image.asset(
+                                      'assets/images/rawri-26-27-community.jpg',
+                                      height: 190,
+                                      fit: BoxFit.contain,
+                                      semanticLabel:
+                                          'SSITE wolf mascot in a hoodie',
+                                    ),
+                                    const Divider(),
+                                    const Text(
+                                      'Different minds. One pack.',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Student Society in Information Technology Education',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 11, color: muted),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                if (widget.onPolicies != null)
-                  TextButton(
-                    onPressed: widget.onPolicies,
-                    child: const Text('Terms of Service and Privacy Policy'),
-                  ),
-              ],
+              ),
             ),
-          ),
+            ColoredBox(
+              color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
+                child: Column(
+                  key: community,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'What you’ll find on SSITE',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const Text(
+                      'Sign in with your MCC Microsoft account to explore the site.',
+                    ),
+                    for (final entry in [
+                      (
+                        'Articles',
+                        'SSITE announcements, news, and student stories.',
+                      ),
+                      (
+                        'Activities & achievements',
+                        'Upcoming events and student accomplishments.',
+                      ),
+                      (
+                        'Documents',
+                        'Files organized by category, semester, and academic year.',
+                      ),
+                      (
+                        'Transparency',
+                        'SSITE financial reports and supporting records.',
+                      ),
+                    ]) ...[
+                      const Divider(),
+                      Text(
+                        entry.$1,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      Text(entry.$2),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              key: mobile,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'SSITE mobile app',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const Text(
+                    'Use your MCC Microsoft account to access SSITE updates and resources on your phone.',
+                  ),
+                  if (widget.onPolicies != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: widget.onPolicies,
+                        child: const Text(
+                          'Terms of Service and Privacy Policy',
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const CmsFooter(),
+          ],
         ),
       ),
     ),

@@ -4,130 +4,78 @@ class _DocumentTile extends StatelessWidget {
   const _DocumentTile({required this.post});
   final CmsPost post;
   @override
-  Widget build(BuildContext context) => _Surface(
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.only(bottom: 16),
+    clipBehavior: Clip.antiAlias,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF5FA),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.description_outlined,
-                color: Color(0xFF155571),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
+        InkWell(
+          onTap: () => _openPost(context, post),
+          child: ColoredBox(
+            color: const Color(0xffeaf7fb),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 216),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (post.category?.isNotEmpty == true) ...[
-                    Text(
-                      post.category!,
-                      style: const TextStyle(fontSize: 12, color: muted),
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  Text(
-                    post.title,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Image.asset(
+                    'assets/images/ssite_logo_cropped.png',
+                    width: 60,
+                    height: 60,
                   ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'SSITE Official Document',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Open document for details'),
                 ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 16,
-          runSpacing: 6,
-          children: [
-            if (post.academicYear?.isNotEmpty == true)
-              Text(
-                'A.Y. ${post.academicYear}',
-                style: const TextStyle(fontSize: 12, color: muted),
-              ),
-            if (post.semester?.isNotEmpty == true)
-              Text(
-                'Semester ${post.semester}',
-                style: const TextStyle(fontSize: 12, color: muted),
-              ),
-            if (post.createdAt?.isNotEmpty == true)
-              Text(
-                formatCmsDate(post.createdAt),
-                style: const TextStyle(fontSize: 12, color: muted),
-              ),
-          ],
-        ),
-        if (post.description.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(
-            post.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, color: muted),
           ),
-        ],
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          children: [
-            TextButton(
-              onPressed: () => _openPost(context, post),
-              child: Text(
-                post.fileUrl == null ? 'View document' : 'View details',
-              ),
-            ),
-            if (post.fileUrl != null)
-              TextButton.icon(
-                onPressed: () => _openPdf(context, post),
-                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                label: const Text('View PDF'),
-              ),
-          ],
         ),
-      ],
-    ),
-  );
-}
-
-class _TransactionCard extends StatelessWidget {
-  const _TransactionCard({required this.post});
-  final CmsPost post;
-  @override
-  Widget build(BuildContext context) => _Surface(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(post.title, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 20,
-          runSpacing: 8,
-          children: [
-            if (post.date?.isNotEmpty == true)
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                formatCmsDate(post.date),
-                style: const TextStyle(fontSize: 12, color: muted),
+                post.category?.isNotEmpty == true
+                    ? post.category!
+                    : 'Uncategorized',
+                style: Theme.of(context).textTheme.labelLarge,
               ),
-            Text(
-              'PHP ${post.amount ?? '—'}',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        TextButton.icon(
-          onPressed: () => _openPost(context, post),
-          icon: const Icon(Icons.receipt_long_outlined, size: 18),
-          label: const Text('View report'),
+              const SizedBox(height: 8),
+              Text(post.title, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              if (post.academicYear?.isNotEmpty == true)
+                Text('Academic year: ${post.academicYear}'),
+              if (post.semester?.isNotEmpty == true)
+                Text('Semester ${post.semester}'),
+              const Text(
+                'Student Society in Information Technology Education',
+                style: TextStyle(color: muted),
+              ),
+              if (post.createdAt != null) Text(formatCmsDate(post.createdAt)),
+              Wrap(
+                spacing: 8,
+                children: [
+                  TextButton(
+                    onPressed: () => _openPost(context, post),
+                    child: const Text('View details'),
+                  ),
+                  if (post.fileUrl != null)
+                    TextButton.icon(
+                      onPressed: () => _openPdf(context, post),
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                      label: const Text('View PDF'),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     ),
@@ -135,75 +83,76 @@ class _TransactionCard extends StatelessWidget {
 }
 
 class _TransactionTable extends StatelessWidget {
-  const _TransactionTable({required this.posts});
+  const _TransactionTable({required this.posts, this.filtered = false});
   final List<CmsPost> posts;
+  final bool filtered;
   @override
-  Widget build(BuildContext context) => MediaQuery.sizeOf(context).width < 600
-      ? Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [for (final post in posts) _TransactionCard(post: post)],
-        )
-      : _Surface(
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: DataTable(
-                  columnSpacing: 24,
-                  horizontalMargin: 0,
-                  headingRowColor: const WidgetStatePropertyAll(
-                    Color(0xFFC7ECF9),
-                  ),
-                  columns: const [
-                    DataColumn(label: Text('Event title')),
-                    DataColumn(label: Text('Date')),
-                    DataColumn(label: Text('Amount')),
-                  ],
-                  rows: [
-                    for (final post in posts)
-                      DataRow(
-                        cells: [
-                          DataCell(
-                            SizedBox(
-                              width: 180,
-                              child: TextButton.icon(
-                                style: TextButton.styleFrom(
-                                  alignment: Alignment.centerLeft,
-                                ),
-                                onPressed: () => _openPost(context, post),
-                                icon: const Icon(
-                                  Icons.description_outlined,
-                                  size: 16,
-                                ),
-                                label: Text(
-                                  post.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              formatCmsDate(post.date),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              'PHP ${post.amount ?? '—'}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
+  Widget build(BuildContext context) {
+    Widget cell(String text, {bool heading = false}) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: heading ? FontWeight.w700 : FontWeight.w400,
+        ),
+      ),
+    );
+    return _Surface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _Heading('Transactions'),
+          Table(
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {
+              0: FlexColumnWidth(44),
+              1: FlexColumnWidth(28),
+              2: FlexColumnWidth(28),
+            },
+            border: const TableBorder(
+              horizontalInside: BorderSide(color: line),
+            ),
+            children: [
+              TableRow(
+                decoration: const BoxDecoration(color: Color(0xffc7ecf9)),
+                children: [
+                  for (final title in ['Event title', 'Date', 'Amount'])
+                    cell(title, heading: true),
+                ],
+              ),
+              for (final post in posts)
+                TableRow(
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(0, 44),
                       ),
+                      onPressed: () => _openPost(context, post),
+                      child: Text(post.title),
+                    ),
+                    cell(
+                      post.date == null
+                          ? 'Date unavailable'
+                          : formatCmsDate(post.date),
+                    ),
+                    cell('PHP ${post.amount ?? '\u2014'}'),
                   ],
                 ),
-              ),
-            ),
+            ],
           ),
-        );
+          if (posts.isEmpty)
+            _Empty(
+              filtered
+                  ? 'No matching transactions. Try another search or report year.'
+                  : 'No published transactions yet. Check back soon for the latest records.',
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 void _openPdf(BuildContext context, CmsPost post) {
