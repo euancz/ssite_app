@@ -6,23 +6,17 @@ import 'package:http/testing.dart';
 import 'package:ssiteapp/services/cms_api.dart';
 
 void main() {
-  test('exchanges the one-time code with the original sign-in proof', () async {
+  test('links Microsoft through the hosted verification RPC', () async {
     final api = CmsApi(
-      baseUrl: 'https://cms.example/api/mobile/v1',
-      client: MockClient((request) async {
-        expect(request.url.path, '/api/mobile/v1/auth/exchange');
-        expect(request.headers.containsKey('Authorization'), isFalse);
-        expect(jsonDecode(request.body), {
-          'code': 'one-time-code',
-          'code_verifier': 'original-proof',
-        });
-        return http.Response(jsonEncode({'token': 'cms-session'}), 200);
+      baseUrl: 'https://app.example/rest/v1/rpc',
+      client: MockClient((req) async {
+        expect(req.url.path, '/rest/v1/rpc/ssite_app_link');
+        expect(req.headers['Authorization'], 'Bearer session');
+        expect(jsonDecode(req.body), {'provider_token': 'graph-token'});
+        return http.Response('', 204);
       }),
-    )..accessToken = 'old-session';
-    expect(
-      await api.exchangeLoginCode('one-time-code', 'original-proof'),
-      'cms-session',
-    );
+    )..accessToken = 'session';
+    await api.linkMicrosoft('graph-token');
   });
 
   test('keeps server-rendered rich article content separate from excerpts', () {
@@ -40,12 +34,14 @@ void main() {
     final api = CmsApi(
       baseUrl: 'https://cms.example/api/mobile/v1',
       client: MockClient((request) async {
-        expect(request.url.path, '/api/mobile/v1/documents');
+        expect(request.url.path, '/api/mobile/v1/ssite_app_read');
+        final rpc = jsonDecode(request.body);
+        expect(rpc['route'], 'documents');
         expect(request.headers['Authorization'], 'Bearer session');
-        expect(request.url.queryParameters['q'], 'Minutes');
-        expect(request.url.queryParameters['sort'], 'title');
-        expect(request.url.queryParameters['page'], '2');
-        expect(request.url.queryParameters['semester'], '1');
+        expect(rpc['params']['q'], 'Minutes');
+        expect(rpc['params']['sort'], 'title');
+        expect(rpc['params']['page'], '2');
+        expect(rpc['params']['semester'], '1');
         return http.Response(
           jsonEncode({
             'data': [
@@ -81,7 +77,7 @@ void main() {
     expect(api.headersForUrl('https://cdn.example/image.jpg'), isEmpty);
     expect(
       api.headersForUrl(
-        'https://cms.example/api/mobile/v1/media/articles/1',
+        'https://cms.example/storage/v1/object/authenticated/files/articles/1',
       )['Authorization'],
       'Bearer secret',
     );
@@ -113,19 +109,22 @@ void main() {
   });
 
   test(
-    'rewrites localhost media and document URLs to the reachable API host',
+    'only private files on the configured Supabase origin receive the session',
     () {
-      final base = Uri.parse(cmsApiBaseUrl);
-      final resolved = Uri.parse(
-        resolveCmsImageUrl(
-          'http://localhost/elective/SSITECMS/public/api/mobile/v1/files/documents/1',
-        ),
-      );
-      expect(resolved.host, base.host);
-      expect(resolved.port, base.port);
+      final api = CmsApi(baseUrl: 'https://app.example/rest/v1/rpc')
+        ..accessToken = 'test';
       expect(
-        resolved.path,
-        '/elective/SSITECMS/public/api/mobile/v1/files/documents/1',
+        api.headersForUrl(
+          'https://app.example/storage/v1/object/authenticated/bucket/file.pdf',
+        )['Authorization'],
+        'Bearer test',
+      );
+      expect(api.headersForUrl('https://elsewhere.example/photo'), isEmpty);
+      expect(
+        api.headersForUrl(
+          'https://app.example/storage/v1/object/public/bucket/photo',
+        ),
+        isEmpty,
       );
     },
   );

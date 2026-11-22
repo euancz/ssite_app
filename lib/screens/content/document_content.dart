@@ -211,7 +211,7 @@ class _TransactionTable extends StatelessWidget {
 
 void _openPdf(BuildContext context, CmsPost post) {
   if (post.fileUrl == null) return;
-  if (CmsApi.instance.accessToken != null && post.viewCount != null) {
+  if (CmsApi.instance.bearer != null && post.viewCount != null) {
     unawaited(
       CmsApi.instance
           .sendAction('engagement/${post.module}/${post.id}/view', {})

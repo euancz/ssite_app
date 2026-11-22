@@ -13,7 +13,9 @@ import 'package:ssiteapp/services/member_profile.dart';
 
 CmsApi testApi({bool workspace = false, List<String>? queries}) => CmsApi(
   client: MockClient((request) async {
-    final path = request.url.path;
+    final rpc = jsonDecode(request.body) as Map;
+    final path = '/${rpc['route']}';
+    final params = rpc['params'] as Map;
     if (path.endsWith('/auth/me')) {
       return http.Response(
         jsonEncode({
@@ -35,7 +37,7 @@ CmsApi testApi({bool workspace = false, List<String>? queries}) => CmsApi(
         200,
       );
     }
-    final discoverType = request.url.queryParameters['type'];
+    final discoverType = params['type'];
     if (path.endsWith('/discover') && discoverType == 'all') {
       return http.Response(
         jsonEncode({
@@ -67,9 +69,9 @@ CmsApi testApi({bool workspace = false, List<String>? queries}) => CmsApi(
         200,
       );
     }
-    final page = int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
+    final page = int.tryParse(params['page'] ?? '1') ?? 1;
     final module = discoverType ?? path.split('/').last;
-    final query = request.url.queryParameters['q'];
+    final query = params['q'];
     if (query != null) queries?.add(query);
     return http.Response(
       jsonEncode({
