@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      backend_url:
+        description: Dart backend URL reachable from the Android device
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -24,7 +29,10 @@ jobs:
           flutter-version: '3.44.9'
       - run: flutter pub get --enforce-lockfile
       - run: flutter test --no-pub
-      - run: flutter build apk --release --no-pub
+      - name: Build release APK
+        env:
+          MOBILE_SERVICE_URL: ${{ inputs.backend_url || vars.SSITE_BACKEND_URL || 'http://localhost:8001' }}
+        run: flutter build apk --release --no-pub --dart-define="SSITE_BACKEND_URL=$MOBILE_SERVICE_URL"
       - uses: actions/upload-artifact@v4
         with:
           name: SSITE-Android-APK

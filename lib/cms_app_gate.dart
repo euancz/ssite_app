@@ -10,6 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'screens/auth/login_screen.dart';
+import 'screens/account_tools.dart';
 import 'screens/main_screen.dart';
 import 'services/cms_api.dart';
 import 'services/cms_browser_callback.dart';
@@ -32,6 +33,7 @@ class _CmsAppGateState extends State<CmsAppGate> {
   StreamSubscription<Uri>? _links;
   Uri? _pendingLink;
   bool _loading = true;
+  bool _needsProfile = false;
   bool _retryRestore = false;
   bool _exchanging = false;
   String? _error;
@@ -69,7 +71,7 @@ class _CmsAppGateState extends State<CmsAppGate> {
       final token = await _storage.read(key: _sessionKey);
       if (token != null) {
         _api.accessToken = token;
-        await _api.currentUser();
+        _needsProfile = (await _api.currentUser())['profile_complete'] == false;
       }
     } on CmsUnauthorized {
       _api.accessToken = null;
@@ -88,6 +90,36 @@ class _CmsAppGateState extends State<CmsAppGate> {
         await _finishSignIn(link);
       }
     }
+  }
+
+  Future<void> _openPolicies() async {
+    final policies = _api.policyText();
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Terms of service and privacy policy'),
+        content: SingleChildScrollView(
+          child: FutureBuilder<String>(
+            future: policies,
+            builder: (_, snapshot) {
+              if (snapshot.hasError) {
+                return const Text(
+                  'Could not load the policies. Please try again.',
+                );
+              }
+              if (!snapshot.hasData) return const CircularProgressIndicator();
+              return Text(snapshot.data!);
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _startSignIn() async {
@@ -147,6 +179,13 @@ class _CmsAppGateState extends State<CmsAppGate> {
       final token = await _api.exchangeLoginCode(code, verifier);
       await _storage.write(key: _sessionKey, value: token);
       _api.accessToken = token;
+      try {
+        _needsProfile = (await _api.currentUser())['profile_complete'] == false;
+      } catch (_) {
+        _api.accessToken = null;
+        _retryRestore = true;
+        rethrow;
+      }
     } catch (_) {
       _error = 'Microsoft sign-in could not be completed. Please try again.';
     } finally {
@@ -221,11 +260,19 @@ class _CmsAppGateState extends State<CmsAppGate> {
         ),
       );
     }
+    if (_api.accessToken != null && _needsProfile) {
+      return AccountTools(
+        api: _api,
+        path: 'onboarding',
+        onUnauthorized: _signOut,
+        onCompleted: () => setState(() => _needsProfile = false),
+      );
+    }
     if (_api.accessToken != null) return MainScreen(onSignOut: _signOut);
     return LoginScreen(
       errorMessage: _error,
       onSignIn: _startSignIn,
-      onPolicies: () => launchUrl(Uri.parse('$cmsWebBaseUrl/policies')),
+      onPolicies: _openPolicies,
     );
   }
 }

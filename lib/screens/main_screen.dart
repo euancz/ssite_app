@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../app_theme.dart';
+import 'account_tools.dart';
 import '../services/cms_api.dart';
 import '../services/member_profile.dart';
 import '../widgets/cms_hero.dart';
@@ -88,7 +89,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       useSafeArea: true,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 480),
-      builder: (_) => _MemberAccount(profile: _profile),
+      builder: (_) =>
+          _MemberAccount(profile: _profile, showSite: _api.supportsWebsite),
     );
     if (!mounted) return;
     if (action == _AccountAction.signOut) {
@@ -96,6 +98,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     } else if (action == _AccountAction.refresh) {
       _keys[_tab].currentState?.reload();
       _loadAccount();
+    } else if (action != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AccountTools(
+            api: _api,
+            path: action.name,
+            onUnauthorized: _endSession,
+          ),
+        ),
+      );
+      if (mounted) {
+        _loadAccount();
+        _keys[_tab].currentState?.reload();
+      }
     }
   }
 

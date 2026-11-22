@@ -78,6 +78,13 @@ class _DocumentTile extends StatelessWidget {
         const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => _openPost(context, post),
+            child: const Text('View details'),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
           child: post.fileUrl != null
               ? TextButton.icon(
                   onPressed: () => _openPdf(context, post),
@@ -204,6 +211,13 @@ class _TransactionTable extends StatelessWidget {
 
 void _openPdf(BuildContext context, CmsPost post) {
   if (post.fileUrl == null) return;
+  if (CmsApi.instance.accessToken != null && post.viewCount != null) {
+    unawaited(
+      CmsApi.instance
+          .sendAction('engagement/${post.module}/${post.id}/view', {})
+          .then<void>((_) {}, onError: (Object _) {}),
+    );
+  }
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => Scaffold(
