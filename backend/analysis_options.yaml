@@ -1,0 +1,4 @@
+linter:
+  rules:
+    - await_only_futures
+    - avoid_print

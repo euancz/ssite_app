@@ -192,7 +192,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ari Reyes'), findsOneWidget);
     expect(find.text('ari@mcc.edu.ph'), findsOneWidget);
-    expect(find.text('Edit profile'), findsNothing);
+    expect(find.text('Edit profile'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();

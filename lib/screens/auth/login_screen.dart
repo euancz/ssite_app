@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app_theme.dart';
 
@@ -8,11 +6,11 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
     this.errorMessage,
-    this.onSignIn,
+    required this.onSignIn,
     this.onPolicies,
   });
   final String? errorMessage;
-  final Future<void> Function()? onSignIn;
+  final Future<void> Function() onSignIn;
   final VoidCallback? onPolicies;
 
   @override
@@ -29,17 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _launchError = null;
     });
     try {
-      if (widget.onSignIn case final signIn?) {
-        await signIn();
-      } else {
-        await Supabase.instance.client.auth.signInWithOAuth(
-          OAuthProvider.azure,
-          redirectTo: kIsWeb ? Uri.base.origin : 'ssiteapp://auth/callback',
-          scopes: 'email User.Read',
-        );
-      }
-    } on AuthException catch (error) {
-      if (mounted) setState(() => _launchError = error.message);
+      await widget.onSignIn();
     } catch (_) {
       if (mounted) {
         setState(

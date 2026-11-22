@@ -1,28 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:ssiteapp/main.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  const sharedPreferencesChannel = MethodChannel(
-    'plugins.flutter.io/shared_preferences',
-  );
-  setUpAll(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(sharedPreferencesChannel, (call) async {
-          if (call.method == 'getAll') return <String, Object>{};
-          return true;
-        });
-    await Supabase.initialize(
-      url: 'https://example.supabase.co',
-      publishableKey: 'test-anon-key',
-    );
-  });
-
-  testWidgets('Shows Microsoft sign-in when no session is saved', (tester) async {
+  FlutterSecureStorage.setMockInitialValues({});
+  testWidgets('Shows Microsoft sign-in when no session is saved', (
+    tester,
+  ) async {
     await tester.pumpWidget(const SSITEApp());
     await tester.pumpAndSettle();
 

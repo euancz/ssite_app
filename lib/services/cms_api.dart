@@ -4,14 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'supabase_feed.dart';
 
 const _configuredCmsApiBaseUrl = String.fromEnvironment('SSITE_API_BASE_URL');
-const _configuredCmsWebBaseUrl = String.fromEnvironment('SSITE_WEB_BASE_URL');
-
-bool get cmsConnectionConfigured =>
-    _configuredCmsApiBaseUrl.isNotEmpty || _configuredCmsWebBaseUrl.isNotEmpty;
+const _configuredCmsWebBaseUrl = String.fromEnvironment('SSITE_BACKEND_URL');
 
 String get cmsApiBaseUrl {
   if (_configuredCmsApiBaseUrl.isNotEmpty) {
@@ -26,7 +21,7 @@ String get cmsApiBaseUrl {
       ? '10.0.2.2'
       : 'localhost';
   final scheme = kIsWeb ? Uri.base.scheme : 'http';
-  return '$scheme://$host:8000/api/mobile/v1';
+  return '$scheme://$host:8001/api/mobile/v1';
 }
 
 String get cmsWebBaseUrl {
@@ -129,7 +124,7 @@ class CmsPost {
     category: json['category'] as String?,
     location: json['location'] as String?,
     awardee: json['awardee'] as String?,
-    url: _url(json['url']),
+    url: json['url'] as String?,
     fileUrl: _url(json['file_url']),
     amount: json['amount']?.toString(),
     academicYear: json['academic_year'] as String?,
@@ -272,9 +267,7 @@ class CmsApi {
   CmsApi({http.Client? client, this.baseUrl})
     : _client = client ?? http.Client(),
       _customClient = client != null;
-  static final CmsApi instance = CmsApi(
-    baseUrl: cmsConnectionConfigured ? cmsApiBaseUrl : null,
-  );
+  static final CmsApi instance = CmsApi(baseUrl: cmsApiBaseUrl);
   final http.Client _client;
   final bool _customClient;
   bool get supportsWebsite => baseUrl != null || _customClient;
@@ -304,15 +297,6 @@ class CmsApi {
     String path, [
     Map<String, String>? query,
   ]) async {
-    if (!supportsWebsite) {
-      try {
-        return await SupabaseFeed(
-          Supabase.instance.client,
-        ).get(path, query ?? {});
-      } on AuthException {
-        throw CmsUnauthorized();
-      }
-    }
     final uri = _base.resolve(path).replace(queryParameters: query);
     final response = await _client
         .get(uri, headers: {'Accept': 'application/json', ...imageHeaders})
@@ -345,6 +329,45 @@ class CmsApi {
     }
     return (jsonDecode(response.body) as Map<String, dynamic>)['token']
         as String;
+  }
+
+  Future<Map<String, dynamic>> toolPage(
+    String path,
+    Map<String, String> filters,
+  ) => _get('tools/$path', filters);
+
+  Future<String> policyText() async {
+    final response = await _client
+        .get(Uri.parse('$cmsWebBaseUrl/policies'))
+        .timeout(const Duration(seconds: 20));
+    if (response.statusCode != 200) {
+      throw const FormatException('Terms could not be loaded.');
+    }
+    return utf8.decode(response.bodyBytes);
+  }
+
+  Future<Map<String, dynamic>> sendAction(
+    String path,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _client
+        .post(
+          _base.resolve(path),
+          headers: {
+            ...imageHeaders,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(data),
+        )
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 401) throw CmsUnauthorized();
+    final result =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw FormatException(result['message'] as String? ?? 'Request failed.');
+    }
+    return result;
   }
 
   Future<void> revokeSession(String token) => _client

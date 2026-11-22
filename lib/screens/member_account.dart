@@ -1,6 +1,6 @@
 part of 'main_screen.dart';
 
-enum _AccountAction { refresh, signOut }
+enum _AccountAction { profile, notifications, workspace, refresh, signOut }
 
 class _MemberAvatar extends StatelessWidget {
   const _MemberAvatar({required this.profile, required this.size});
@@ -59,8 +59,9 @@ class _MemberAvatar extends StatelessWidget {
 }
 
 class _MemberAccount extends StatelessWidget {
-  const _MemberAccount({required this.profile});
+  const _MemberAccount({required this.profile, required this.showSite});
 
+  final bool showSite;
   final ValueNotifier<MemberProfile?> profile;
 
   @override
@@ -112,6 +113,32 @@ class _MemberAccount extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        if (showSite) ...[
+          for (final (action, title, icon) in [
+            (_AccountAction.profile, 'Edit profile', Icons.person_outline),
+            (
+              _AccountAction.notifications,
+              'Notifications',
+              Icons.notifications_outlined,
+            ),
+          ])
+            ListTile(
+              leading: Icon(icon),
+              title: Text(title),
+              onTap: () => Navigator.pop(context, action),
+            ),
+          ValueListenableBuilder<MemberProfile?>(
+            valueListenable: profile,
+            builder: (context, user, _) => user?.canAccessWorkspace == true
+                ? ListTile(
+                    leading: const Icon(Icons.dashboard_outlined),
+                    title: const Text('Staff workspace'),
+                    onTap: () =>
+                        Navigator.pop(context, _AccountAction.workspace),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
         ListTile(
           leading: const Icon(Icons.refresh_rounded),
           title: const Text('Refresh content'),
