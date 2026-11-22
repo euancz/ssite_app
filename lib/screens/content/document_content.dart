@@ -76,25 +76,22 @@ class _DocumentTile extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: () => _openPost(context, post),
-            child: const Text('View details'),
-          ),
-        ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: post.fileUrl != null
-              ? TextButton.icon(
-                  onPressed: () => _openPdf(context, post),
-                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                  label: const Text('View PDF'),
-                )
-              : TextButton(
-                  onPressed: () => _openPost(context, post),
-                  child: const Text('View document'),
-                ),
+        Wrap(
+          spacing: 8,
+          children: [
+            TextButton(
+              onPressed: () => _openPost(context, post),
+              child: Text(
+                post.fileUrl == null ? 'View document' : 'View details',
+              ),
+            ),
+            if (post.fileUrl != null)
+              TextButton.icon(
+                onPressed: () => _openPdf(context, post),
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                label: const Text('View PDF'),
+              ),
+          ],
         ),
       ],
     ),

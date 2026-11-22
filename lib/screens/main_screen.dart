@@ -127,21 +127,35 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   final _keys = List.generate(5, (_) => GlobalKey<_CmsPageState>());
-  void _select(int index) => setState(() => _tab = index);
+  void _select(int index) {
+    if (_tab == index) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    _keys[_tab].currentState?._dismissSuggestions();
+    setState(() => _tab = index);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 768;
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = width < 768;
+    final logoSize = width <= 380
+        ? 38.0
+        : compact
+        ? 42.0
+        : 60.0;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: accent,
-        titleSpacing: compact ? 12 : 24,
+        titleSpacing: width <= 380
+            ? 10
+            : compact
+            ? 14
+            : 24,
         title: Row(
           children: [
             Image.asset(
               'assets/images/ssite_logo_cropped.png',
-              width: compact ? 42 : 60,
-              height: compact ? 42 : 60,
+              width: logoSize,
+              height: logoSize,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -245,7 +259,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
-      bottomNavigationBar: compact
+      bottomNavigationBar:
+          compact && MediaQuery.viewInsetsOf(context).bottom == 0
           ? CmsNavigation(selectedIndex: _tab, onSelect: _select)
           : null,
     );

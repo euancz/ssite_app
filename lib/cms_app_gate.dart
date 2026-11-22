@@ -75,14 +75,30 @@ class _CmsAppGateState extends State<CmsAppGate> {
   }
 
   Future<void> signOut() async {
-    await widget.client.auth.signOut(scope: SignOutScope.local);
-    if (mounted) await restore(null);
+    try {
+      await widget.client.auth.signOut(scope: SignOutScope.local);
+    } catch (_) {
+      if (!mounted) return;
+      if (widget.client.auth.currentSession == null) {
+        await restore(null);
+        setState(
+          () => error =
+              'Signed out on this device. Could not confirm sign-out with the server.',
+        );
+      } else {
+        setState(
+          () => error =
+              'Could not sign out. Check your connection and try again.',
+        );
+      }
+    }
   }
 
   Future<void> signIn() async {
     final opened = await widget.client.auth.signInWithOAuth(
       OAuthProvider.azure,
       scopes: 'email User.Read',
+      queryParams: const {'prompt': 'login'},
       redirectTo: kIsWeb ? Uri.base.origin : 'ssiteapp://auth/callback',
     );
     if (!opened) throw StateError('Browser unavailable.');

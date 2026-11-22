@@ -267,6 +267,32 @@ void main() {
     });
   }
 
+  testWidgets('landscape tabs leave the feed room when the keyboard opens', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(667, 375);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(),
+        home: MainScreen(onSignOut: () {}, api: testApi()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(CmsNavigation)).height, 60);
+    await tester.tap(find.text('Discover'));
+    tester.view.viewInsets = const FakeViewPadding(bottom: 180);
+    await tester.pumpAndSettle();
+    expect(find.byType(CmsNavigation), findsNothing);
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    expect(find.text('Discover'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('feed switches modules and loads the next CMS page', (
     tester,
   ) async {

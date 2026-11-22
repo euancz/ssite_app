@@ -46,53 +46,61 @@ class _LoginScreenState extends State<LoginScreen> {
     body: SafeArea(
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.sizeOf(context).width <= 380 ? 16 : 24,
+            vertical: 24,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  height: 220,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: navy),
-                    boxShadow: const [
-                      BoxShadow(color: navy, offset: Offset(5, 5)),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      const Positioned.fill(
-                        child: CustomPaint(painter: _LoginGridPainter()),
-                      ),
-                      Center(
-                        child: Image.asset(
-                          'assets/images/rawri-26-27-community.jpg',
-                          width: 250,
-                          fit: BoxFit.contain,
-                          semanticLabel: 'SSITE wolf mascot',
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/images/ssite_logo_cropped.png',
+                      width: 40,
+                      height: 40,
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'SSITE at Mabalacat City College',
+                        style: TextStyle(
+                          color: navy,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                const Divider(),
+                const SizedBox(height: 16),
+                Semantics(
+                  header: true,
+                  child: const Text.rich(
+                    TextSpan(
+                      text: 'Campus life.\n',
+                      children: [
+                        TextSpan(
+                          text: 'Closer to you.',
+                          style: TextStyle(color: Color(0xFF155571)),
+                        ),
+                      ],
+                    ),
+                    style: TextStyle(
+                      fontSize: 42,
+                      letterSpacing: -1.8,
+                      height: 1.08,
+                      fontWeight: FontWeight.w700,
+                      color: navy,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 18),
                 const Text(
-                  'Welcome to SSITE',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: navy,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Sign in with your Mabalacat City College Microsoft account to continue.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: muted, fontSize: 14, height: 1.5),
+                  'News, activities, and resources for the SSITE community at Mabalacat City College.',
+                  style: TextStyle(color: muted, fontSize: 16, height: 1.6),
                 ),
                 const SizedBox(height: 24),
                 if (widget.errorMessage != null || _launchError != null) ...[
@@ -112,8 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                SizedBox(
-                  height: 54,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 54),
                   child: OutlinedButton.icon(
                     onPressed: _openingSignIn ? null : _signInWithMicrosoft,
                     style: OutlinedButton.styleFrom(
@@ -135,12 +143,61 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : const _MicrosoftMark(),
                     label: const Text(
-                      'Continue with Microsoft',
+                      'Sign in with Microsoft',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
                 const SizedBox(height: 14),
+                const Text(
+                  'Use your MCC Microsoft account to get started.',
+                  style: TextStyle(color: muted),
+                ),
+                const SizedBox(height: 28),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: navy),
+                    borderRadius: BorderRadius.circular(4),
+                    boxShadow: const [
+                      BoxShadow(color: navy, offset: Offset(4, 4)),
+                    ],
+                  ),
+                  child: CustomPaint(
+                    painter: _LoginGridPainter(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'Student Society in Information Technology Education',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Image.asset(
+                            'assets/images/rawri-26-27-community.jpg',
+                            height: 190,
+                            fit: BoxFit.contain,
+                            semanticLabel: 'SSITE wolf mascot in a hoodie',
+                          ),
+                          const Divider(),
+                          const Text(
+                            'Different minds. One pack.',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 if (widget.onPolicies != null)
                   TextButton(
                     onPressed: widget.onPolicies,

@@ -169,6 +169,7 @@ class _AccountToolsState extends State<AccountTools> {
                       for (final f
                           in (data?['filters'] as List? ?? []).cast<_Data>())
                         DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: filters[f['key']] ?? f['value'],
                           decoration: InputDecoration(labelText: f['key']),
                           items: [
@@ -176,7 +177,11 @@ class _AccountToolsState extends State<AccountTools> {
                                 in (f['choices'] as List).cast<String>())
                               DropdownMenuItem(
                                 value: v,
-                                child: Text(v.isEmpty ? 'All' : v),
+                                child: Text(
+                                  v.isEmpty ? 'All' : v,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                           ],
                           onChanged: (v) {
@@ -188,6 +193,7 @@ class _AccountToolsState extends State<AccountTools> {
                             }
                           },
                         ),
+                      const SizedBox(height: 12),
                       if ((data!['items'] as List).isEmpty)
                         const Text('No records to display.'),
                       for (final row in (data['items'] as List).cast<_Data>())
@@ -201,29 +207,34 @@ class _AccountToolsState extends State<AccountTools> {
                             onUnauthorized: widget.onUnauthorized,
                           )
                         else
-                          ListTile(
-                            title: Text(row['title'].toString()),
-                            subtitle: row['detail'] == null
-                                ? null
-                                : Text(row['detail'].toString()),
-                            leading: row['image'] == null
-                                ? null
-                                : CircleAvatar(
-                                    backgroundImage: NetworkImage(
-                                      row['image'],
-                                      headers: widget.api.headersForUrl(
+                          Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            clipBehavior: Clip.antiAlias,
+                            child: ListTile(
+                              title: Text(row['title'].toString()),
+                              subtitle: row['detail'] == null
+                                  ? null
+                                  : Text(row['detail'].toString()),
+                              leading: row['image'] == null
+                                  ? null
+                                  : CircleAvatar(
+                                      backgroundImage: NetworkImage(
                                         row['image'],
+                                        headers: widget.api.headersForUrl(
+                                          row['image'],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                            trailing: row['path'] == null && row['file'] == null
-                                ? null
-                                : const Icon(Icons.chevron_right),
-                            onTap: row['file'] != null
-                                ? () => attachment(row)
-                                : row['path'] == null
-                                ? null
-                                : () => go(row['path']),
+                              trailing:
+                                  row['path'] == null && row['file'] == null
+                                  ? null
+                                  : const Icon(Icons.chevron_right),
+                              onTap: row['file'] != null
+                                  ? () => attachment(row)
+                                  : row['path'] == null
+                                  ? null
+                                  : () => go(row['path']),
+                            ),
                           ),
                     ],
                   ),

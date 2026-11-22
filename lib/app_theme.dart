@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 // SSITECMS/public/css/app.css and site-navigation.css.
 const navy = Color(0xFF17324D);
 const blue = Color(0xFF3DAFEA);
-const accent = Color(0xFF8AD5F4);
+const accent = Color(0xFF7BD0ED);
 const canvas = Color(0xFFF7FAFC);
 const ink = Color(0xFF17324D);
 const muted = Color(0xFF52697C);
@@ -35,7 +35,7 @@ ThemeData buildAppTheme() => ThemeData(
       height: 1.4,
       fontWeight: FontWeight.w600,
     ),
-    bodyLarge: TextStyle(fontSize: 15, height: 1.65),
+    bodyLarge: TextStyle(fontSize: 16, height: 1.6),
     bodyMedium: TextStyle(fontSize: 14, height: 1.6),
     bodySmall: TextStyle(fontSize: 12, height: 1.5),
     labelLarge: TextStyle(
@@ -54,8 +54,16 @@ ThemeData buildAppTheme() => ThemeData(
       fontWeight: FontWeight.w600,
     ),
   ).apply(fontFamily: 'Poppins', bodyColor: ink, displayColor: ink),
+  cardTheme: CardThemeData(
+    color: Colors.white,
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: const BorderSide(color: line),
+    ),
+  ),
   appBarTheme: const AppBarTheme(
-    backgroundColor: Colors.white,
+    backgroundColor: accent,
     foregroundColor: ink,
     surfaceTintColor: Colors.transparent,
     elevation: 0,

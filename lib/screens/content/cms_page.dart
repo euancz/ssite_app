@@ -285,7 +285,7 @@ class _CmsPageState extends State<CmsPage> {
                 child: Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: compact ? 16 : 20,
-                    vertical: 24,
+                    vertical: compact ? 22 : 24,
                   ),
                   child: CmsHero(name: name, label: title),
                 ),
@@ -511,33 +511,29 @@ class _CmsPageState extends State<CmsPage> {
 
   List<Widget> _filters() => [
     if (widget.kind == 'discover') ...[
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final entry in {
-              'all': 'All',
-              'articles': 'Articles',
-              'activities': 'Activities',
-              'achievements': 'Achievements',
-            }.entries)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(entry.value),
-                  selected: _module == entry.key,
-                  selectedColor: const Color(0xFFC7ECF9),
-                  onSelected: (_) {
-                    if (_module == entry.key) return;
-                    _module = entry.key;
-                    _category = '';
-                    _filterOptions = {};
-                    reload();
-                  },
-                ),
-              ),
-          ],
-        ),
+      Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          for (final entry in {
+            'all': 'All',
+            'articles': 'Articles',
+            'activities': 'Activities',
+            'achievements': 'Achievements',
+          }.entries)
+            ChoiceChip(
+              label: Text(entry.value),
+              selected: _module == entry.key,
+              selectedColor: const Color(0xFFC7ECF9),
+              onSelected: (_) {
+                if (_module == entry.key) return;
+                _module = entry.key;
+                _category = '';
+                _filterOptions = {};
+                reload();
+              },
+            ),
+        ],
       ),
       const SizedBox(height: 14),
     ],

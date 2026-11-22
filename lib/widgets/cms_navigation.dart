@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_theme.dart';
+
 /// Keep the order, labels, colors and 768px breakpoint in sync with the CMS.
 const cmsDestinations = [
   (label: 'Home', icon: Icons.home_outlined),
@@ -23,8 +25,13 @@ class CmsNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final small = MediaQuery.sizeOf(context).width < 360;
+    final viewport = MediaQuery.sizeOf(context);
+    final small = viewport.width < 360;
+    final shortLandscape = viewport.width >= 480 && viewport.height <= 480;
     final tabs = Row(
+      crossAxisAlignment: compact
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
       mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
       children: [
         for (var index = 0; index < cmsDestinations.length; index++)
@@ -35,12 +42,18 @@ class CmsNavigation extends StatelessWidget {
       ],
     );
     return Material(
-      color: compact ? const Color(0xFF7BD0ED) : const Color(0xFF155571),
+      color: compact ? accent : const Color(0xFF155571),
       borderRadius: compact ? BorderRadius.zero : BorderRadius.circular(11),
       clipBehavior: Clip.antiAlias,
       child: compact
-          ? SafeArea(top: false, child: tabs)
-          : Padding(padding: const EdgeInsets.all(4), child: tabs),
+          ? SafeArea(
+              top: false,
+              child: SizedBox(height: shortLandscape ? 60 : 72, child: tabs),
+            )
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Padding(padding: const EdgeInsets.all(4), child: tabs),
+            ),
     );
   }
 
@@ -52,15 +65,17 @@ class CmsNavigation extends StatelessWidget {
     final selected = selectedIndex == index;
     return Semantics(
       selected: selected,
+      button: true,
       child: InkWell(
         onTap: () => onSelect(index),
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: compact ? 2 : 16,
-            vertical: compact ? 10 : 12,
+            vertical: compact ? 4 : 12,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (compact) ...[
                 Container(
@@ -78,7 +93,7 @@ class CmsNavigation extends StatelessWidget {
                     size: 22,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
               ],
               Container(
                 decoration: !compact && selected
